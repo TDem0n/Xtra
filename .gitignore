@@ -2,3 +2,12 @@
 venv/
 .vscode/
 __pycache__/
+cachednews.json
+cachegpt.json
+cachellm.json
+cities.json
+currentacts.json
+e1news.json
+notifyusers.json
+profiles.json
+rianews.json
