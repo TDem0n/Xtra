@@ -305,7 +305,21 @@ async def notify_handler(message: Message):
             else:
                 response = "🔕 Уведомления не настроены"
             await message.answer(response)
-            await message.answer("Напишите время, в которое Вы хотите получать новости ежедневно по местному времени (часы и минуты через двоеточие, например, 12:56)")
+
+            from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
+            # Создаём клавиатуру с кнопками-ответами
+            time_keyboard = ReplyKeyboardMarkup(
+                resize_keyboard=True,
+                one_time_keyboard=True,  # Клавиатура скроется после выбора
+                keyboard=[
+                    [KeyboardButton(text="0:00"), KeyboardButton(text="4:00")],
+                    [KeyboardButton(text="7:00"), KeyboardButton(text="12:00")],
+                    [KeyboardButton(text="16:00"), KeyboardButton(text="20:00")]
+                ]
+            )
+
+            await message.answer("Выберите время:", reply_markup=time_keyboard)
             set_current_action(user_id, "notify")
             return
 
