@@ -273,6 +273,7 @@ async def xtra_handler(message: Message):
 
 @dp.message(Command("city"))
 async def city_handler(message: Message):
+    await message.answer(f"Установлен город: {get_city(message.from_user.id)}")
     await message.answer("Напишите название Вашего города")
     curact = get_current_action(message.from_user.id)
     if curact != None and curact.split(maxsplit=1)[0]!="city": set_current_action(message.from_user.id, "city "+curact)
