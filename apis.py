@@ -230,18 +230,53 @@ def E1News():
         print("news E1 error:", e)
         return None
     
+import feedparser
+
+def ixbtNews():
+    """
+    Получает данные из RSS-фида iXBT и возвращает их в виде списка словарей.
+    """
+    url = 'https://www.ixbt.com/export/news.rss'
+    news_list = []
+    
+    try:
+        # Получаем данные через requests для контроля ошибок
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # Парсим RSS с помощью feedparser
+        feed = feedparser.parse(response.content)
+        
+        # Формируем список новостей
+        for entry in feed.entries:
+            news_item = {
+                'title': entry.get('title', 'Без заголовка'),
+                'link': entry.get('link', 'Без ссылки'),
+                'pubDate': entry.get('published', 'Без даты'),
+                'content': entry.get('description', 'Нет содержания')
+            }
+            news_list.append(news_item)
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при получении RSS-фида iXBT: {e}")
+    except Exception as e:
+        print(f"Произошла непредвиденная ошибка при парсинге iXBT: {e}")
+    
+    return news_list
+
+def raise_():
+    raise ValueError("Hi")
+    
 def News(country="ru", service="ria") -> list:
     """
     returns list of dicts of news
     """
-    if service.lower() == "ria":
-        return RIANews()
-    elif service.lower() == "newsdata":
-        return NewsdataNews(country)
-    elif service.lower() == "e1":
-        return E1News()
-    else:
+    servfunc = {"ria": RIANews, "newsdata": NewsdataNews, "e1": E1News, "ixbt": ixbtNews}
+    act = servfunc.get(service.lower(), None)
+    if act == None: 
         raise ValueError(f"Wrong name of service {service}")
+        return
+    return act()
 
 # Функция для создания списка новостей
 def extract_news(data: dict):

@@ -42,6 +42,8 @@ bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 scheduler = AsyncIOScheduler()
 
+basenews = ["ria", "ixbt"]
+
 
 def ekb(message: Message = None, userid: int = None) -> bool:
     # Реализуйте вашу логику определения региона
@@ -209,7 +211,7 @@ async def send_important_news(message: Message, progress: bool = True):
     if collectnews.noupdates().total_seconds() > 90:
         await asyncio.to_thread(collectnews.step)
     
-    sources = ["ria"]
+    sources = basenews.copy()
     if ekb(message):
         sources.append("e1")
     
@@ -382,7 +384,7 @@ async def send_scheduled_xtra(userid: int):
         if collectnews.noupdates().total_seconds() > 90:
             await asyncio.to_thread(collectnews.step)
 
-        sources = ["ria"]
+        sources = basenews.copy()
         if ekb(userid=userid):
             sources.append("e1")
         
