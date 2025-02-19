@@ -10,7 +10,8 @@ from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram import F
+from aiogram.types import Message, ReplyKeyboardRemove
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from telegram_handler import TelegramHandler
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 
 import technical
 import collectnews
+import interaction as intr
 
 from geopy.geocoders import Nominatim
 from tzwhere import tzwhere
@@ -35,12 +37,12 @@ fp = os.path.abspath(__file__)
 basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 devid = 5324202988
-startchain = ["city", "profile"]
 
 # Инициализация бота
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 scheduler = AsyncIOScheduler()
+
 
 basenews = ["ria", "ixbt"]
 
@@ -174,7 +176,7 @@ async def set_notifytime(user_id, args, message, job_id, tz, notify_users, notif
         with open(notify_file, "w", encoding="utf-8") as f:
             json.dump(notify_users, f, indent=2, ensure_ascii=False)
 
-        await message.answer(f"✅ Ежедневные уведомления установлены на {hours:02}:{mins:02} "+ (str(tz) if tz!=None else "UTC"))
+        await message.answer(f"✅ Ежедневные уведомления установлены на {hours:02}:{mins:02} "+ (str(tz) if tz!=None else "UTC"), reply_markup=intr.free)
 
 @dp.message(CommandStart())
 async def start_handler(message: Message):
@@ -189,7 +191,7 @@ async def start_handler(message: Message):
     await message.answer(f"Здравствуйте, {html.bold(message.from_user.full_name)}!")
     await message.answer(start_msg)
     userid = message.from_user.id
-    await bot.send_message(userid, "В каком городе Вы живёте? Напишите название Вашего города")
+    await bot.send_message(userid, "В каком городе Вы живёте? Напишите название Вашего города", reply_markup=intr.city)
     set_current_action(userid, "city profile")
     
 @dp.message(Command('help'))
@@ -201,7 +203,7 @@ async def help_handler(message: Message):
     except Exception as e:
         logging.error(f"Error reading help message: {e}")
 
-    await message.answer(help_msg)
+    await message.answer(help_msg, reply_markup=intr.free)
     set_current_action(message.from_user.id, None)
 
 async def send_important_news(message: Message, progress: bool = True):
@@ -224,10 +226,10 @@ async def send_important_news(message: Message, progress: bool = True):
             llm="openai",
             model="gpt-4o-mini"
         )
-        await message.answer(news)
+        await message.answer(news, reply_markup=intr.free)
     except Exception as e:
         logging.error(f"News error: {e}")
-        await message.answer("Ошибка при получении новостей")
+        await message.answer("Ошибка при получении новостей", reply_markup=intr.free)
 
 async def send_weather(message: Message, progress: bool = True, enquiry: str = None):
     if progress:
@@ -240,16 +242,16 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
             source='openmeteo',
             enquiry=enquiry
         )
-        await message.answer(wthr if wthr else "Ничего особенного в прогнозе")
+        await message.answer(wthr if wthr else "Ничего особенного в прогнозе", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
         logging.error(f"Weather error: {e}")
-        await message.answer("Ошибка при проверке погоды")
+        await message.answer("Ошибка при проверке погоды", reply_markup=intr.free)
 
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
     await message.answer(f"Ваш профиль:\n<code>{get_profile(message.from_user.id)}</code>")
-    await message.answer("Отправьте новый профиль для обновления")
+    await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.free)
     set_current_action(message.from_user.id, "profile")
 
 @dp.message(Command("bignews", "important", "важное"))
@@ -274,10 +276,11 @@ async def xtra_handler(message: Message):
 @dp.message(Command("city"))
 async def city_handler(message: Message):
     await message.answer(f"Установлен город: {get_city(message.from_user.id)}")
-    await message.answer("Напишите название Вашего города")
+    await message.answer("Напишите название Вашего города", reply_markup=intr.city)
     curact = get_current_action(message.from_user.id)
     if curact != None and curact.split(maxsplit=1)[0]!="city": set_current_action(message.from_user.id, "city "+curact)
     elif curact in (None, ""): set_current_action(message.from_user.id, "city")
+
 
 @dp.message(Command("notify"))
 async def notify_handler(message: Message):
@@ -307,20 +310,7 @@ async def notify_handler(message: Message):
                 response = "🔕 Уведомления не настроены"
             await message.answer(response)
 
-            from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-
-            # Создаём клавиатуру с кнопками-ответами
-            time_keyboard = ReplyKeyboardMarkup(
-                resize_keyboard=True,
-                one_time_keyboard=True,  # Клавиатура скроется после выбора
-                keyboard=[
-                    [KeyboardButton(text="0:00"), KeyboardButton(text="4:00")],
-                    [KeyboardButton(text="7:00"), KeyboardButton(text="12:00")],
-                    [KeyboardButton(text="16:00"), KeyboardButton(text="20:00")]
-                ]
-            )
-
-            await message.answer("Выберите время:", reply_markup=time_keyboard)
+            await message.answer("Выберите время:", reply_markup=intr.time)
             set_current_action(user_id, "notify")
             return
 
@@ -337,34 +327,46 @@ async def notify_handler(message: Message):
                     json.dump(notify_users, f, indent=2)
                 removed = True
             
-            await message.answer("🔕 Уведомления отключены" if removed else "⚠ Нет активных уведомлений")
+            await message.answer("🔕 Уведомления отключены" if removed else "⚠ Нет активных уведомлений",
+                                 reply_markup=intr.free)
             return
 
         await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
 
     except Exception as e:
         logging.error(f"Notify Error [User {user_id}]: {str(e)}", exc_info=True)
-        await message.answer("❌ Произошла ошибка при обработке запроса")
+        await message.answer("❌ Произошла ошибка при обработке запроса", reply_markup=intr.free)
         
 @dp.message()
 async def default_handler(message: Message):
+    mt = message.text
+    if mt==intr.notify_text: set_current_action(message.from_user.id, "notify"); return
+    elif mt==intr.xtra_text: return await xtra_handler(message)
+    elif mt==intr.profile_text: return await profile_handler(message)
+    elif mt==intr.city_text: return await city_handler(message)
+    elif mt==intr.help_text: return await help_handler(message)
+
     userid = message.from_user.id
     act = get_current_action(userid)
     if message.text and act==None: 
-        await message.answer("Не понимаю команду. Используйте /help")
+        await message.answer("Не понимаю команду. Используйте /help", reply_markup=intr.free)
         return
     chain = act.split() if act!=None else None
     next_msg = None
     repeat = False
+    remove_kb = False
+
     if chain[0] == "profile":
         save_profile(userid, message.text)
-        await message.answer("Профиль успешно обновлен!")
+        await message.answer("Профиль успешно обновлен!", reply_markup=intr.free)
     if chain[0] == "city":
         if city_exists(message.text):
             save_city(userid, message.text)
-            await message.answer(f"Город успешно обновлён! Ваш часовой пояс - {get_tz(userid)}. Если это не так, отправьте /city чтобы попробовать снова")
+            await message.answer(f"Город успешно обновлён! Ваш часовой пояс - {get_tz(userid)}. Если это не так, отправьте /city чтобы попробовать снова", 
+                                 reply_markup=intr.free)
         else:
-            await message.answer("Город не найден, проверьте правильность написания и отправьте снова")
+            await message.answer("Город не найден, проверьте правильность написания и отправьте снова",
+                                 reply_markup=intr.free)
             repeat = True
     if chain[0] == "notify":
         args = message.text
@@ -385,11 +387,12 @@ async def default_handler(message: Message):
     if len(chain) > 1 and not repeat:
         if chain[1] == "profile":
             next_msg=("Теперь напишите описание Вашего профиля")
+            remove_kb = True
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
         set_current_action(userid, " ".join(chain[1:]))
     else: set_current_action(userid, None)
-    if next_msg: await message.answer(next_msg)
+    if next_msg: await message.answer(next_msg, reply_markup=(intr.free if not remove_kb else ReplyKeyboardRemove()))
     
     if repeat: set_current_action(userid, act)
 # Изменения в send_scheduled_xtra
