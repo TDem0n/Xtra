@@ -283,7 +283,7 @@ async def city_handler(message: Message):
 
 
 @dp.message(Command("notify"))
-async def notify_handler(message: Message):
+async def notify_handler(message: Message, try_to_get_time=True):
     # Получаем аргументы команды правильно
     args = message.text.split(maxsplit=1)[1].strip() if len(message.text.split()) > 1 else ""
     user_id = message.from_user.id
@@ -302,7 +302,7 @@ async def notify_handler(message: Message):
                 pass
 
         # Проверка текущих настроек
-        if not args:
+        if (not args) or (not try_to_get_time):
             if str(user_id) in notify_users:
                 time_data = notify_users[str(user_id)]
                 response = f"🔔 Уведомления установлены на {time_data['hrs']:02}:{time_data['mns']:02} "+(str(tz) if tz!=None else "UTC")
@@ -340,7 +340,7 @@ async def notify_handler(message: Message):
 @dp.message()
 async def default_handler(message: Message):
     mt = message.text
-    if mt==intr.notify_text: set_current_action(message.from_user.id, "notify"); return
+    if mt==intr.notify_text: return await notify_handler(message, try_to_get_time=False)
     elif mt==intr.xtra_text: return await xtra_handler(message)
     elif mt==intr.profile_text: return await profile_handler(message)
     elif mt==intr.city_text: return await city_handler(message)
