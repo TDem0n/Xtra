@@ -251,7 +251,7 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
     await message.answer(f"Ваш профиль:\n<code>{get_profile(message.from_user.id)}</code>")
-    await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.free)
+    await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.setprof)
     set_current_action(message.from_user.id, "profile")
 
 @dp.message(Command("bignews", "important", "важное"))
@@ -265,7 +265,7 @@ async def weather_handler(message: Message):
     enquiry = message.text[8:].strip() or None
     await send_weather(message, enquiry=enquiry)
 
-@dp.message(Command("xtra"))
+@dp.message(Command("xtra", "sense"))
 async def xtra_handler(message: Message):
     set_current_action(message.from_user.id, None)
     await asyncio.gather(
@@ -345,6 +345,7 @@ async def default_handler(message: Message):
     elif mt==intr.profile_text: return await profile_handler(message)
     elif mt==intr.city_text: return await city_handler(message)
     elif mt==intr.help_text: return await help_handler(message)
+    elif mt==intr.cancel_text: return await message.answer("Вы вернулись на главную", reply_markup=intr.free)
 
     userid = message.from_user.id
     act = get_current_action(userid)
@@ -354,7 +355,7 @@ async def default_handler(message: Message):
     chain = act.split() if act!=None else None
     next_msg = None
     repeat = False
-    remove_kb = False
+    kb = intr.free
 
     if chain[0] == "profile":
         save_profile(userid, message.text)
@@ -387,12 +388,12 @@ async def default_handler(message: Message):
     if len(chain) > 1 and not repeat:
         if chain[1] == "profile":
             next_msg=("Теперь напишите описание Вашего профиля")
-            remove_kb = True
+            kb = intr.setprof
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
         set_current_action(userid, " ".join(chain[1:]))
     else: set_current_action(userid, None)
-    if next_msg: await message.answer(next_msg, reply_markup=(intr.free if not remove_kb else ReplyKeyboardRemove()))
+    if next_msg: await message.answer(next_msg, reply_markup=kb)
     
     if repeat: set_current_action(userid, act)
 # Изменения в send_scheduled_xtra
