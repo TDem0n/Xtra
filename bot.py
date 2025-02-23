@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram import F
+from aiogram import F, types
 from aiogram.types import Message, ReplyKeyboardRemove
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -223,8 +223,10 @@ async def send_important_news(message: Message, progress: bool = True):
             newspart=100,
             message=message if progress else None,
             source=sources,
-            llm="openai",
-            model="gpt-4o-mini"
+            llm1="openai",
+            model1="gpt-4o-mini",
+            llm2="deepseek",
+            model2="deepseek-chat"
         )
         await message.answer(news, reply_markup=intr.free)
     except Exception as e:
@@ -412,8 +414,10 @@ async def send_scheduled_xtra(userid: int):
             profile=f"Город: {get_city(userid)}"+get_profile(userid),
             source=sources,
             message=None,
-            llm="openai",
-            model="gpt-4o-mini",
+            llm1="openai",
+            model1="gpt-4o-mini",
+            llm2="deepseek",
+            model2="deepseek-chat",
             newspart=100
         )
         weather_coro = asyncio.to_thread(
@@ -425,7 +429,6 @@ async def send_scheduled_xtra(userid: int):
         
         # Запускаем обе задачи параллельно
         news, wthr = await asyncio.gather(news_coro, weather_coro)
-        
         # Отправляем результаты
         await bot.send_message(userid, news)
         if wthr:

@@ -107,7 +107,8 @@ def GetNews(services = ["ria", "e1"]):
     return news
 
 async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ria"], timeframe:float|int=24, newspart:int=40, 
-                 message:Message|types.NoneType=None, delayinfo=5, caching=True, llm="deepseek", model="gpt-4o-mini"):
+                 message:Message|types.NoneType=None, delayinfo=5, caching=True, 
+                 llm="deepseek", llm1=None, llm2=None, model="gpt-4o-mini", model1=None, model2=None):
     """
     returns llm's filtered news after 2-step analysis\n\n
     'profile' is user's profile, may include his interests and place of living\n
@@ -170,7 +171,8 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 # define input to gpt
                 inpgpt = commonprompt+newsstrpart
                 # getting answer from gpt
-                ansgpt = await apis.LLM(inp=inpgpt, service=llm, model=model, caching=caching, pr_io=True)
+
+                ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm1 else llm1), model=(model if not model1 else model1), caching=caching, pr_io=True)
 
                 # caching news
                 with open(basedir+"cachednews.json", encoding="utf-8") as f:
@@ -188,7 +190,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 # if showing progress is on and from last notification about progress (or from start of process) passed more than given
                 if progress and tmr.passed.seconds > delayinfo:
                     # notify about progress
-                    prgrs = f"Обработка {nn+1}/{len(news)}"
+                    prgrs = f"Обработка других событий {nn+1}/{len(news)}"
                     if progress_msg == None: 
                         progress_msg = await message.answer(prgrs)
                     else: await progress_msg.edit_text(prgrs)
@@ -212,7 +214,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     with open(basedir+"finalpromptgpt.txt", encoding="utf-8") as f:
         finalpromptgpt = f.read()
     inpgpt = finalpromptgpt+"\n\n\tПрофиль пользователя:\n"+profile+"\n\tНовости (нумерация может быть неверной):\n"+answer
-    ansgpt = await apis.LLM(inp=inpgpt, service=llm, model=model, caching=caching, pr_io=True)
+    ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm2 else llm2), model=(model if not model2 else model2), caching=caching, pr_io=True)
     if progress and progress_msg != None: await progress_msg.delete()
     return ansgpt
 
