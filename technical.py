@@ -226,6 +226,6 @@ def Weather(city:str, profile:str="Нет профиля", source:str="openmeteo
     print(inpt)
     ansgpt = apis.GPT(inpt)
     noweather = "ничего необычного"
-    if ansgpt.lower().startswith(noweather.lower()):
+    if noweather.lower() in ansgpt.lower():
         return None
     return ansgpt

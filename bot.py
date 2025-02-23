@@ -242,7 +242,7 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
             source='openmeteo',
             enquiry=enquiry
         )
-        await message.answer(wthr if wthr else "Ничего особенного в прогнозе", reply_markup=intr.free)
+        await message.answer(wthr if wthr else "Ничего особенного в прогнозе погоды", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
         logging.error(f"Weather error: {e}")

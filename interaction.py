@@ -34,7 +34,7 @@ city = ReplyKeyboardMarkup(
 )
 
 notify_text = "Уведомления"
-xtra_text = "Запустить проверку"
+xtra_text = "Узнать о важных событиях"
 profile_text = "Мой профиль"
 city_text = "Мой город"
 help_text = "Помощь"
@@ -60,7 +60,7 @@ setprof = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text=st) for st in setproftext] for setproftext in setprof_text
     ],
-    input_field_placeholder="Цели и др.",
+    input_field_placeholder="О себе и цели",
     is_persistent=True,
     selective=True
 )
