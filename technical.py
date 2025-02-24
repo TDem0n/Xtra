@@ -172,7 +172,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 inpgpt = commonprompt+newsstrpart
                 # getting answer from gpt
 
-                ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm1 else llm1), model=(model if not model1 else model1), caching=caching, pr_io=True)
+                ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm1 else llm1), model=(model if not model1 else model1), caching=caching, pr_io=False)
 
                 # caching news
                 with open(basedir+"cachednews.json", encoding="utf-8") as f:
@@ -214,7 +214,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     with open(basedir+"finalpromptgpt.txt", encoding="utf-8") as f:
         finalpromptgpt = f.read()
     inpgpt = finalpromptgpt+"\n\n\tПрофиль пользователя:\n"+profile+"\n\tНовости (нумерация может быть неверной):\n"+answer
-    ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm2 else llm2), model=(model if not model2 else model2), caching=caching, pr_io=True)
+    ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm2 else llm2), model=(model if not model2 else model2), caching=caching, pr_io=False)
     if progress and progress_msg != None: await progress_msg.delete()
     return ansgpt
 

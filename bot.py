@@ -4,6 +4,7 @@ import sys
 import json
 import os
 import datetime
+import traceback
 
 from datetime import timedelta
 from aiogram import Bot, Dispatcher, html
@@ -401,7 +402,6 @@ async def default_handler(message: Message):
 # Изменения в send_scheduled_xtra
 async def send_scheduled_xtra(userid: int):
     try:
-        # Обновляем новости асинхронно
         if collectnews.noupdates().total_seconds() > 90:
             await asyncio.to_thread(collectnews.step)
 
@@ -409,33 +409,45 @@ async def send_scheduled_xtra(userid: int):
         if ekb(userid=userid):
             sources.append("e1")
         
-        # Параллельное выполнение новостей и погоды
-        news_coro = technical.StepwiseNews(
-            profile=f"Город: {get_city(userid)}"+get_profile(userid),
-            source=sources,
-            message=None,
-            llm1="openai",
-            model1="gpt-4o-mini",
-            llm2="deepseek",
-            model2="deepseek-chat",
-            newspart=100
-        )
-        weather_coro = asyncio.to_thread(
-            technical.Weather,
-            city="екб",
-            profile=get_profile(userid),
-            source='openmeteo'
-        )
+        # Добавляем логирование для отладки
+        city = get_city(userid)
+        profile = get_profile(userid)
+        logging.info(f"User {userid} - City: {city}, Profile: {profile}")
         
-        # Запускаем обе задачи параллельно
+        # Параллельное выполнение новостей и погоды
+        try:
+            news_coro = technical.StepwiseNews(
+                profile=f"Город: {city}\n{profile}",
+                source=sources,
+                message=None,
+                llm1="openai",
+                model1="gpt-4o-mini",
+                llm2="deepseek",
+                model2="deepseek-chat",
+                newspart=100
+            )
+        except Exception as e:
+            logging.error(f"Error in StepwiseNews: {e}")
+            raise
+
+        try:
+            weather_coro = asyncio.to_thread(
+                technical.Weather,
+                city="екб",
+                profile=profile,
+                source='openmeteo'
+            )
+        except Exception as e:
+            logging.error(f"Error in Weather: {e}")
+            raise
+        
         news, wthr = await asyncio.gather(news_coro, weather_coro)
-        # Отправляем результаты
         await bot.send_message(userid, news)
         if wthr:
             await bot.send_message(userid, wthr)
 
     except Exception as e:
-        logging.error(f"Scheduled xtra error for {userid}: {e}")
+        logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
         
 async def collectnews_update_job():
@@ -448,9 +460,10 @@ async def main():
         with open(notify_file, "r", encoding="utf-8") as f:
             notify_users = json.load(f)
             for uid, time in notify_users.items():
+                tz = get_tz(int(uid))
                 scheduler.add_job(
                     send_scheduled_xtra,
-                    CronTrigger(hour=time["hrs"], minute=time["mns"], timezone="UTC"),
+                    CronTrigger(hour=time["hrs"], minute=time["mns"], timezone=tz if tz!=None else "UTC"),
                     args=[int(uid)],
                     id=f"{uid}_evrd",
                     misfire_grace_time=misfgtime
