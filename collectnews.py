@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import apis, timer
 
-services = ["ria", "e1"]
+services = ["ria", "e1", "ixbt"]
 # Директория, в которой находится файл (например, /some/path/)
 import os
 fp = os.path.abspath(__file__)
@@ -75,9 +75,9 @@ def step(limit_collect=timedelta(hours=48)):
             newsstream = uniqdicts(newsstream+freshnews)
             with open(basedir+servpath[service], encoding="utf-8", mode="w") as f:
                 json.dump(newsstream, f)
-            print(f"Added {len(newsstream)-lenbefore} unique news of {service}")
+            print(f"Added {len(newsstream)-lenbefore} unique news in {servpath[service]}")
 
-        print(f"Now there's {len(newsstream)} unique fresh news of {service}")
+        print(f"Now there's {len(newsstream)} unique fresh news in {servpath[service]}")
         laststep = timer.timer()
 
 waitmins = 120

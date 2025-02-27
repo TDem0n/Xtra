@@ -4,13 +4,15 @@ import sys
 import json
 import os
 import datetime
+import traceback
 
 from datetime import timedelta
 from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram import F, types
+from aiogram.types import Message, ReplyKeyboardRemove
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from telegram_handler import TelegramHandler
@@ -37,12 +39,12 @@ fp = os.path.abspath(__file__)
 basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 devid = 5324202988
-startchain = ["city", "profile"]
 
 # Инициализация бота
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 scheduler = AsyncIOScheduler()
+
 
 basenews = ["ria", "ixbt"]
 
@@ -189,7 +191,7 @@ async def set_notifytime(user_id, args, message, job_id, tz, notify_users, notif
         with open(notify_file, "w", encoding="utf-8") as f:
             json.dump(notify_users, f, indent=2, ensure_ascii=False)
 
-        await message.answer(f"✅ Ежедневные уведомления установлены на {hours:02}:{mins:02} "+ (str(tz) if tz!=None else "UTC"))
+        await message.answer(f"✅ Ежедневные уведомления установлены на {hours:02}:{mins:02} "+ (str(tz) if tz!=None else "UTC"), reply_markup=intr.free)
 
 @dp.message(CommandStart())
 async def start_handler(message: Message):
@@ -236,13 +238,15 @@ async def send_important_news(message: Message, progress: bool = True):
             newspart=100,
             message=message if progress else None,
             source=sources,
-            llm="openai",
-            model="gpt-4o-mini"
+            llm1="openai",
+            model1="gpt-4o-mini",
+            llm2="deepseek",
+            model2="deepseek-chat"
         )
-        await message.answer(news)
+        await message.answer(news, reply_markup=intr.free)
     except Exception as e:
         logging.error(f"News error: {e}")
-        await message.answer("Ошибка при получении новостей")
+        await message.answer("Ошибка при получении новостей", reply_markup=intr.free)
 
 async def send_weather(message: Message, progress: bool = True, enquiry: str = None):
     if progress:
@@ -255,11 +259,11 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
             source='openmeteo',
             enquiry=enquiry
         )
-        await message.answer(wthr if wthr else "Ничего особенного в прогнозе")
+        await message.answer(wthr if wthr else "Ничего особенного в прогнозе погоды", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
         logging.error(f"Weather error: {e}")
-        await message.answer("Ошибка при проверке погоды")
+        await message.answer("Ошибка при проверке погоды", reply_markup=intr.free)
 
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
@@ -278,7 +282,7 @@ async def weather_handler(message: Message):
     enquiry = message.text[8:].strip() or None
     await send_weather(message, enquiry=enquiry)
 
-@dp.message(Command("xtra"))
+@dp.message(Command("xtra", "sense"))
 async def xtra_handler(message: Message):
     await set_current_action(message.from_user.id, None)
     await asyncio.gather(
@@ -296,7 +300,7 @@ async def city_handler(message: Message):
 
 
 @dp.message(Command("notify"))
-async def notify_handler(message: Message):
+async def notify_handler(message: Message, try_to_get_time=True):
     # Получаем аргументы команды правильно
     args = message.text.split(maxsplit=1)[1].strip() if len(message.text.split()) > 1 else ""
     user_id = message.from_user.id
@@ -315,7 +319,7 @@ async def notify_handler(message: Message):
                 pass
 
         # Проверка текущих настроек
-        if not args:
+        if (not args) or (not try_to_get_time):
             if str(user_id) in notify_users:
                 time_data = notify_users[str(user_id)]
                 response = f"🔔 Уведомления установлены на {time_data['hrs']:02}:{time_data['mns']:02} "+(str(tz) if tz!=None else "UTC")
@@ -340,25 +344,36 @@ async def notify_handler(message: Message):
                     json.dump(notify_users, f, indent=2)
                 removed = True
             
-            await message.answer("🔕 Уведомления отключены" if removed else "⚠ Нет активных уведомлений")
+            await message.answer("🔕 Уведомления отключены" if removed else "⚠ Нет активных уведомлений",
+                                 reply_markup=intr.free)
             return
 
         await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
 
     except Exception as e:
         logging.error(f"Notify Error [User {user_id}]: {str(e)}", exc_info=True)
-        await message.answer("❌ Произошла ошибка при обработке запроса")
+        await message.answer("❌ Произошла ошибка при обработке запроса", reply_markup=intr.free)
         
 @dp.message()
 async def default_handler(message: Message):
+    mt = message.text
+    if mt==intr.notify_text: return await notify_handler(message, try_to_get_time=False)
+    elif mt==intr.xtra_text: return await xtra_handler(message)
+    elif mt==intr.profile_text: return await profile_handler(message)
+    elif mt==intr.city_text: return await city_handler(message)
+    elif mt==intr.help_text: return await help_handler(message)
+    elif mt==intr.cancel_text: return await message.answer("Вы вернулись на главную", reply_markup=intr.free)
+
     userid = message.from_user.id
     act = await get_current_action(userid)
     if message.text and act==None: 
-        await message.answer("Не понимаю команду. Используйте /help")
+        await message.answer("Не понимаю команду. Используйте /help", reply_markup=intr.free)
         return
     chain = act.split() if act!=None else None
     next_msg = None
     repeat = False
+    kb = intr.free
+
     if chain[0] == "profile":
         await save_profile(userid, message.text)
         await message.answer("Профиль успешно обновлен!", reply_markup=intr.free)
@@ -368,7 +383,8 @@ async def default_handler(message: Message):
             await message.answer(f"Город успешно обновлён! Ваш часовой пояс - {await get_tz(userid)}. Если это не так, отправьте /city чтобы попробовать снова", 
                                  reply_markup=intr.free)
         else:
-            await message.answer("Город не найден, проверьте правильность написания и отправьте снова")
+            await message.answer("Город не найден, проверьте правильность написания и отправьте снова",
+                                 reply_markup=intr.free)
             repeat = True
     if chain[0] == "notify":
         args = message.text
@@ -389,6 +405,7 @@ async def default_handler(message: Message):
     if len(chain) > 1 and not repeat:
         if chain[1] == "profile":
             next_msg=("Теперь напишите описание Вашего профиля")
+            kb = intr.setprof
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
         await set_current_action(userid, " ".join(chain[1:]))
@@ -399,7 +416,6 @@ async def default_handler(message: Message):
 # Изменения в send_scheduled_xtra
 async def send_scheduled_xtra(userid: int):
     try:
-        # Обновляем новости асинхронно
         if collectnews.noupdates().total_seconds() > 90:
             await asyncio.to_thread(collectnews.step)
 
@@ -413,31 +429,39 @@ async def send_scheduled_xtra(userid: int):
         logging.info(f"User {userid} - City: {city}, Profile: {profile}")
         
         # Параллельное выполнение новостей и погоды
-        news_coro = technical.StepwiseNews(
-            profile=f"Город: {get_city(userid)}"+get_profile(userid),
-            source=sources,
-            message=None,
-            llm="openai",
-            model="gpt-4o-mini",
-            newspart=100
-        )
-        weather_coro = asyncio.to_thread(
-            technical.Weather,
-            city="екб",
-            profile=get_profile(userid),
-            source='openmeteo'
-        )
+        try:
+            news_coro = technical.StepwiseNews(
+                profile=f"Город: {city}\n{profile}",
+                source=sources,
+                message=None,
+                llm1="openai",
+                model1="gpt-4o-mini",
+                llm2="deepseek",
+                model2="deepseek-chat",
+                newspart=100
+            )
+        except Exception as e:
+            logging.error(f"Error in StepwiseNews: {e}")
+            raise
+
+        try:
+            weather_coro = asyncio.to_thread(
+                technical.Weather,
+                city="екб",
+                profile=profile,
+                source='openmeteo'
+            )
+        except Exception as e:
+            logging.error(f"Error in Weather: {e}")
+            raise
         
-        # Запускаем обе задачи параллельно
         news, wthr = await asyncio.gather(news_coro, weather_coro)
-        
-        # Отправляем результаты
         await bot.send_message(userid, news)
         if wthr:
             await bot.send_message(userid, wthr)
 
     except Exception as e:
-        logging.error(f"Scheduled xtra error for {userid}: {e}")
+        logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
         
 async def collectnews_update_job():
@@ -453,7 +477,7 @@ async def main():
                 tz = await get_tz(int(uid))
                 scheduler.add_job(
                     send_scheduled_xtra,
-                    CronTrigger(hour=time["hrs"], minute=time["mns"], timezone="UTC"),
+                    CronTrigger(hour=time["hrs"], minute=time["mns"], timezone=tz if tz!=None else "UTC"),
                     args=[int(uid)],
                     id=f"{uid}_evrd",
                     misfire_grace_time=misfgtime

@@ -170,8 +170,3 @@ async def setnews(service: str, news_list: list):
         {"$set": {"news": news_list}},
         upsert=True
     )
-
-async def main():
-    print(await db.users.find_one({"id": 5324202988}))
-
-asyncio.run(main())
