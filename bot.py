@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 
 import technical
 import collectnews
+import interaction as intr
+import data
 
 from geopy.geocoders import Nominatim
 from tzwhere import tzwhere
@@ -49,17 +51,21 @@ def ekb(message: Message = None, userid: int = None) -> bool:
     # Реализуйте вашу логику определения региона
     return True
 
-def get_profile(userid: int) -> str:
+async def get_profile(userid: int) -> str:
+    print(f"Для проверки. Profile {userid}: {await (data.getprofile(userid))}")
     profile_file = os.path.join(basedir, "profiles.json")
     try:
         with open(profile_file, "r", encoding="utf-8") as f:
             profiles = json.load(f)
-        return profiles.get(str(userid), "Нет профиля")
+        prf = profiles.get(str(userid), "Нет профиля")
+        await data.setprofile(userid, prf)
+        return prf
     except Exception as e:
         logging.error(f"Error reading profiles: {e}")
         return None
 
-def save_profile(userid: int, text: str) -> None:
+async def save_profile(userid: int, text: str) -> None:
+    await data.setprofile(userid, text)
     profile_file = os.path.join(basedir, "profiles.json")
     try:
         with open(profile_file, "r+", encoding="utf-8") as f:
@@ -71,17 +77,20 @@ def save_profile(userid: int, text: str) -> None:
     except Exception as e:
         logging.error(f"Error saving profile: {e}")
 
-def get_city(userid: int):
+async def get_city(userid: int):
     city_file = os.path.join(basedir, "cities.json")
     try:
         with open(city_file, "r", encoding="utf-8") as f:
             cities = json.load(f)
-        return cities.get(str(userid), None)
+        ct = cities.get(str(userid), None)
+        await data.setcity(userid, ct)
+        return ct
     except Exception as e:
         logging.error(f"Error reading cities: {e}")
         return None
     
-def save_city(userid: int, city: str):
+async def save_city(userid: int, city: str):
+    await data.setcity(userid, city)
     city_file = os.path.join(basedir, "cities.json")
     try:
         with open(city_file, "r+", encoding="utf-8") as f:
@@ -111,21 +120,26 @@ def get_timezone_by_city(city_name: str, language: str = 'ru') -> str:
     timezone_str = tf.timezone_at(lat=location.latitude, lng=location.longitude)
     return timezone_str
 
-def get_tz(userid: int):
-    city = get_city(userid)
-    return get_timezone_by_city(city)
+async def get_tz(userid: int):
+    city = await get_city(userid)
+    tz = get_timezone_by_city(city)
+    await data.settz(userid, tz)
+    return tz
 
-def get_current_action(userid: int) -> str:
+async def get_current_action(userid: int) -> str:
     action_file = os.path.join(basedir, "currentacts.json")
     try:
         with open(action_file, "r", encoding="utf-8") as f:
             actions = json.load(f)
-        return actions.get(str(userid))
+        act = actions.get(str(userid))
+        await data.setact(userid, act)
+        return act
     except Exception as e:
         logging.error(f"Error reading actions: {e}")
         return None
 
-def set_current_action(userid: int, action: str) -> None:
+async def set_current_action(userid: int, action: str) -> None:
+    await data.setact(userid, action)
     action_file = os.path.join(basedir, "currentacts.json")
     try:
         # Попытка открыть файл в режиме чтения/записи
@@ -170,6 +184,7 @@ async def set_notifytime(user_id, args, message, job_id, tz, notify_users, notif
         )
 
         # Сохранение настроек
+        await data.setnotify(user_id, hours, mins)
         notify_users[str(user_id)] = {"hrs": hours, "mns": mins}
         with open(notify_file, "w", encoding="utf-8") as f:
             json.dump(notify_users, f, indent=2, ensure_ascii=False)
@@ -189,8 +204,8 @@ async def start_handler(message: Message):
     await message.answer(f"Здравствуйте, {html.bold(message.from_user.full_name)}!")
     await message.answer(start_msg)
     userid = message.from_user.id
-    await bot.send_message(userid, "В каком городе Вы живёте? Напишите название Вашего города")
-    set_current_action(userid, "city profile")
+    await bot.send_message(userid, "В каком городе Вы живёте? Напишите название Вашего города", reply_markup=intr.city)
+    await set_current_action(userid, "city profile")
     
 @dp.message(Command('help'))
 async def help_handler(message: Message):
@@ -201,8 +216,8 @@ async def help_handler(message: Message):
     except Exception as e:
         logging.error(f"Error reading help message: {e}")
 
-    await message.answer(help_msg)
-    set_current_action(message.from_user.id, None)
+    await message.answer(help_msg, reply_markup=intr.free)
+    await set_current_action(message.from_user.id, None)
 
 async def send_important_news(message: Message, progress: bool = True):
     if progress:
@@ -217,7 +232,7 @@ async def send_important_news(message: Message, progress: bool = True):
     
     try:
         news = await technical.StepwiseNews(
-            profile=f"Город: {get_city(message.from_user.id)}\n"+get_profile(message.from_user.id),
+            profile=f"Город: {await get_city(message.from_user.id)}\n"+await get_profile(message.from_user.id),
             newspart=100,
             message=message if progress else None,
             source=sources,
@@ -236,7 +251,7 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
         wthr = await asyncio.to_thread(
             technical.Weather,
             city="екб",
-            profile=get_profile(message.from_user.id),
+            profile=await get_profile(message.from_user.id),
             source='openmeteo',
             enquiry=enquiry
         )
@@ -248,24 +263,24 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
 
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
-    await message.answer(f"Ваш профиль:\n<code>{get_profile(message.from_user.id)}</code>")
-    await message.answer("Отправьте новый профиль для обновления")
-    set_current_action(message.from_user.id, "profile")
+    await message.answer(f"Ваш профиль:\n<code>{await get_profile(message.from_user.id)}</code>")
+    await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.setprof)
+    await set_current_action(message.from_user.id, "profile")
 
 @dp.message(Command("bignews", "important", "важное"))
 async def news_handler(message: Message):
-    set_current_action(message.from_user.id, None)
+    await set_current_action(message.from_user.id, None)
     asyncio.create_task(send_important_news(message))
 
 @dp.message(Command("weather"))
 async def weather_handler(message: Message):
-    set_current_action(message.from_user.id, None)
+    await set_current_action(message.from_user.id, None)
     enquiry = message.text[8:].strip() or None
     await send_weather(message, enquiry=enquiry)
 
 @dp.message(Command("xtra"))
 async def xtra_handler(message: Message):
-    set_current_action(message.from_user.id, None)
+    await set_current_action(message.from_user.id, None)
     await asyncio.gather(
         send_important_news(message, progress=True),
         send_weather(message, progress=True)
@@ -273,10 +288,12 @@ async def xtra_handler(message: Message):
 
 @dp.message(Command("city"))
 async def city_handler(message: Message):
-    await message.answer("Напишите название Вашего города")
-    curact = get_current_action(message.from_user.id)
-    if curact != None and curact.split(maxsplit=1)[0]!="city": set_current_action(message.from_user.id, "city "+curact)
-    elif curact in (None, ""): set_current_action(message.from_user.id, "city")
+    await message.answer(f"Установлен город: {await get_city(message.from_user.id)}")
+    await message.answer("Напишите название Вашего города", reply_markup=intr.city)
+    curact = await get_current_action(message.from_user.id)
+    if curact != None and curact.split(maxsplit=1)[0]!="city": await set_current_action(message.from_user.id, "city "+curact)
+    elif curact in (None, ""): await set_current_action(message.from_user.id, "city")
+
 
 @dp.message(Command("notify"))
 async def notify_handler(message: Message):
@@ -285,7 +302,7 @@ async def notify_handler(message: Message):
     user_id = message.from_user.id
     notify_file = os.path.join(basedir, "notifyusers.json")
     job_id = f"{user_id}_evrd"
-    tz = get_tz(user_id)
+    tz = await get_tz(user_id)
 
     try:
         # Загрузка данных уведомлений (с обработкой пустого файла)
@@ -305,8 +322,9 @@ async def notify_handler(message: Message):
             else:
                 response = "🔕 Уведомления не настроены"
             await message.answer(response)
-            await message.answer("Напишите время, в которое Вы хотите получать новости ежедневно по местному времени (часы и минуты через двоеточие, например, 12:56)")
-            set_current_action(user_id, "notify")
+
+            await message.answer("Выберите время:", reply_markup=intr.time)
+            await set_current_action(user_id, "notify")
             return
 
         # Обработка отключения уведомлений
@@ -334,7 +352,7 @@ async def notify_handler(message: Message):
 @dp.message()
 async def default_handler(message: Message):
     userid = message.from_user.id
-    act = get_current_action(userid)
+    act = await get_current_action(userid)
     if message.text and act==None: 
         await message.answer("Не понимаю команду. Используйте /help")
         return
@@ -342,12 +360,13 @@ async def default_handler(message: Message):
     next_msg = None
     repeat = False
     if chain[0] == "profile":
-        save_profile(userid, message.text)
-        await message.answer("Профиль успешно обновлен!")
+        await save_profile(userid, message.text)
+        await message.answer("Профиль успешно обновлен!", reply_markup=intr.free)
     if chain[0] == "city":
         if city_exists(message.text):
-            save_city(userid, message.text)
-            await message.answer(f"Город успешно обновлён! Ваш часовой пояс - {get_tz(userid)}. Если это не так, отправьте /city чтобы попробовать снова")
+            await save_city(userid, message.text)
+            await message.answer(f"Город успешно обновлён! Ваш часовой пояс - {await get_tz(userid)}. Если это не так, отправьте /city чтобы попробовать снова", 
+                                 reply_markup=intr.free)
         else:
             await message.answer("Город не найден, проверьте правильность написания и отправьте снова")
             repeat = True
@@ -356,7 +375,7 @@ async def default_handler(message: Message):
         user_id = message.from_user.id
         notify_file = os.path.join(basedir, "notifyusers.json")
         job_id = f"{user_id}_evrd"
-        tz = get_tz(user_id)
+        tz = await get_tz(user_id)
         
         notify_users = {}
         if os.path.exists(notify_file):
@@ -372,11 +391,11 @@ async def default_handler(message: Message):
             next_msg=("Теперь напишите описание Вашего профиля")
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
-        set_current_action(userid, " ".join(chain[1:]))
-    else: set_current_action(userid, None)
-    if next_msg: await message.answer(next_msg)
+        await set_current_action(userid, " ".join(chain[1:]))
+    else: await set_current_action(userid, None)
+    if next_msg: await message.answer(next_msg, reply_markup=kb)
     
-    if repeat: set_current_action(userid, act)
+    if repeat: await set_current_action(userid, act)
 # Изменения в send_scheduled_xtra
 async def send_scheduled_xtra(userid: int):
     try:
@@ -387,6 +406,11 @@ async def send_scheduled_xtra(userid: int):
         sources = basenews.copy()
         if ekb(userid=userid):
             sources.append("e1")
+        
+        # Добавляем логирование для отладки
+        city = await get_city(userid)
+        profile = await get_profile(userid)
+        logging.info(f"User {userid} - City: {city}, Profile: {profile}")
         
         # Параллельное выполнение новостей и погоды
         news_coro = technical.StepwiseNews(
@@ -426,6 +450,7 @@ async def main():
         with open(notify_file, "r", encoding="utf-8") as f:
             notify_users = json.load(f)
             for uid, time in notify_users.items():
+                tz = await get_tz(int(uid))
                 scheduler.add_job(
                     send_scheduled_xtra,
                     CronTrigger(hour=time["hrs"], minute=time["mns"], timezone="UTC"),
