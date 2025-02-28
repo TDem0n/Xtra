@@ -1,7 +1,7 @@
 import time, json
 from datetime import datetime, timedelta, timezone
 
-import apis, timer
+import apis, timer, data
 
 services = ["ria", "e1", "ixbt"]
 # Директория, в которой находится файл (например, /some/path/)
@@ -39,6 +39,7 @@ def riadate2time(stringtime):
     return time_struct
 
 def noupdates() -> timedelta:
+    global laststep
     return laststep.passed
 
 def delold(news: list, limitfresh):
@@ -54,15 +55,19 @@ def delold(news: list, limitfresh):
     return news
 
 
-def step(limit_collect=timedelta(hours=48)):
+async def step(limit_collect=timedelta(hours=48)):
+    global laststep
     with open(basedir+"servpath.json") as f:
         servpath = json.load(f)
     for service in services:
         with open(basedir+servpath[service], encoding="utf-8") as f:
             newsstream = json.load(f)
-        oldlen = len(newsstream)
+        newsstream2 = await data.getnews(service)
+        oldlen, oldlen2 = len(newsstream), len(newsstream2)
         newsstream = delold(newsstream, limit_collect)
+        newsstream2 = delold(newsstream2, limit_collect)
         print(f"Deleted {oldlen-len(newsstream)} old news of {service}")
+        print(f"Deleted {oldlen2-len(newsstream2)} old news of {service} in MongoDB")
 
         freshnews = apis.News(service=service)
         if freshnews is not None:
@@ -72,18 +77,17 @@ def step(limit_collect=timedelta(hours=48)):
                     rnew[key] = fnew[key]
                 freshnews[i] = rnew
             lenbefore = len(newsstream)
+            lenbefore2 = len(newsstream2)
             newsstream = uniqdicts(newsstream+freshnews)
+            newsstream2 = uniqdicts(newsstream2+freshnews)
             with open(basedir+servpath[service], encoding="utf-8", mode="w") as f:
                 json.dump(newsstream, f)
-            print(f"Added {len(newsstream)-lenbefore} unique news in {servpath[service]}")
+            await data.setnews(service, newsstream2)
+            print(f"Added {len(newsstream)-lenbefore} unique news to {servpath[service]}")
+            print(f"Added {len(newsstream2)-lenbefore2} unique news to {service} in MongoDB")
 
         print(f"Now there's {len(newsstream)} unique fresh news in {servpath[service]}")
+        print(f"Now there's {len(newsstream2)} unique fresh news in {service} in MongoDB")
         laststep = timer.timer()
 
 waitmins = 120
-
-"""while True:
-    step()
-    print(f"Waiting for {waitmins} minutes... Time: {time2str(time.localtime(), format_='%d.%m, %H:%M %S s')}")
-    time.sleep(waitmins*60)
-"""

@@ -227,7 +227,7 @@ async def send_important_news(message: Message, progress: bool = True):
         await message.answer("Анализирую новости...")
     
     if collectnews.noupdates().total_seconds() > 90:
-        await asyncio.to_thread(collectnews.step)
+        await collectnews.step()
     
     sources = basenews.copy()
     if ekb(message):
@@ -418,7 +418,7 @@ async def default_handler(message: Message):
 async def send_scheduled_xtra(userid: int):
     try:
         if collectnews.noupdates().total_seconds() > 90:
-            await asyncio.to_thread(collectnews.step)
+            await collectnews.step()
 
         sources = basenews.copy()
         if ekb(userid=userid):
@@ -464,9 +464,6 @@ async def send_scheduled_xtra(userid: int):
     except Exception as e:
         logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
-        
-async def collectnews_update_job():
-    await asyncio.to_thread(collectnews.step)
 
 async def main():
     # Восстанавливаем расписания
@@ -488,10 +485,10 @@ async def main():
 
     # Задача для регулярного обновления новостей
     scheduler.add_job(
-        collectnews_update_job,
+        collectnews.step,
         'interval',
         minutes=120,
-        next_run_time=datetime.now() + timedelta(minutes=1)
+        next_run_time=datetime.now() + timedelta(minutes=5)
     )
     scheduler.start()
     
