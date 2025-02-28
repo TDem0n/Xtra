@@ -225,7 +225,7 @@ def Weather(city:str, profile:str="Нет профиля", source:str="openmeteo
     wthr = "\n\n".join(wthr)
     inpt = f"{wprompt}\nПрофиль пользователя:\n{profile}\n\nПогода:\n{wthr}"
     if enquiry != None: inpt += f"\n\nДоп. запрос пользователя: {enquiry}"
-    print(inpt)
+    #print(inpt) # Excess printing
     ansgpt = apis.GPT(inpt)
     noweather = "ничего необычного"
     if noweather.lower() in ansgpt.lower():
