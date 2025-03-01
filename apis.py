@@ -8,6 +8,8 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
+import data as db
+
 load_dotenv()
 
 import sys
@@ -58,6 +60,7 @@ async def LLM(
     # Асинхронная работа с кэшем
     cache = {}
     try:
+        cache = await db.getllmcache() # Only for making sure it works
         async with aiofiles.open("cachellm.json", mode="r", encoding="utf-8") as f:
             cache = json.loads(await f.read())
     except (FileNotFoundError, json.JSONDecodeError):
@@ -70,6 +73,7 @@ async def LLM(
         if pr_c: 
             print("using cached result")
         cache[txtcache]["dt"] = datetime.utcnow().isoformat()
+        await db.setllmcache(cache)
         async with aiofiles.open("cachellm.json", mode="w", encoding="utf-8") as f:
             await f.write(json.dumps(cache, ensure_ascii=False))
         if pr_io: 
@@ -134,6 +138,7 @@ async def LLM(
             for key in keys_to_delete:
                 del cache[key]
         
+        await db.setllmcache(cache)
         async with aiofiles.open("cachellm.json", mode="w", encoding="utf-8") as f:
             await f.write(json.dumps(cache, ensure_ascii=False))
 
@@ -143,55 +148,8 @@ async def LLM(
     return restext
     
 #GPT API using caching
-def GPT(inp, model='gpt-3.5-turbo', caching=True, pr_io=False, pr_c=True):
-    if pr_io: print(basedir+"chat gpt's input:", inp)
-    with open(basedir+"cachegpt.json", encoding="utf-8") as f:
-        cache = dict(json.load(f))
-    txtcache = f"{model}\n\n{inp}"
-    #delete excess old cache pairs
-    if len(cache) > max_cachelen:
-        cache_=cache.copy()
-        sorted_keys = sorted(cache.keys(), key=lambda k: str2time(cache[k]["dt"]))
-        for key in sorted_keys[:len(cache)-max_cachelen]:
-            cache_.pop(key)
-        with open(basedir+"cachegpt.json", "w", encoding="utf-8") as f:
-            json.dump(cache_, f)
-    if caching and txtcache in cache:
-        if pr_c: print("using cached result")
-        cache[txtcache]["dt"] = time2str(gmtime())
-        with open(basedir+"cachegpt.json", "w", encoding="utf-8") as f:
-            json.dump(cache, f)
-        restext = cache[txtcache]["res"]
-        if pr_io: print("chat gpt's answer:", restext)
-        return restext
-    if caching==True and pr_c: print("using real api gpt")
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "user", "content": inp}
-        ]
-    }
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    # Отправка POST-запроса
-    response = requests.post(api_url, json=payload, headers=headers)
-    # Проверка ответа
-    if response.status_code == 200:
-        restext = str(response.json()["choices"][0]["message"]["content"])
-        with open(basedir+"cachegpt.json", encoding="utf-8") as f:
-            cache = json.load(f)
-        cache[txtcache] = {"res":restext, "dt":time2str(gmtime())}
-        with open(basedir+"cachegpt.json", "w", encoding="utf-8") as f:
-            json.dump(cache, f)
-        if pr_io: print("chat gpt's answer:", restext)
-        return restext
-    else:
-        restext = f"{response.status_code}: {response.text}"
-        if pr_io: print("chat gpt's error:", restext)
-        return "Error: "+restext
+async def GPT(inp, model='gpt-3.5-turbo', caching=True, pr_io=False, pr_c=True):
+    return await LLM(inp, service='openai', model=model, caching=caching, pr_io=pr_io, pr_c=pr_c)
     
 def NewsdataNews(country="ru"):
     got = requests.get(f"https://newsdata.io/api/1/latest?country={country}&language={country}&apikey=pub_64712c3faa88a3b936d740c91d69ab4508fee")

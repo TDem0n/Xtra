@@ -108,9 +108,9 @@ async def getnotify(user_id: int) -> dict:
     user = await db.users.find_one({"id": user_id})
     return user.get("notifytime") if user else None
 
-async def setnotify(user_id: int, hrs: int, mns: int):
+async def setnotify(user_id: int, hrs: int, mns: int, off=False):
     async with USER_LOCKS[user_id]:
-        return await _atomic_user_update(user_id, {"notifytime": {"hrs": hrs, "mns": mns}})
+        return await _atomic_user_update(user_id, {"notifytime": ({"hrs": hrs, "mns": mns} if not off else None)})
 
 async def getprofile(user_id: int) -> str:
     user = await db.users.find_one({"id": user_id})
