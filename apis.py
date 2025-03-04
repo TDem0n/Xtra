@@ -45,6 +45,9 @@ proxyapi_url = "https://api.proxyapi.ru"
 serv_urls = {"openai": "openai/v1/chat/completions",
             "deepseek": "deepseek/chat/completions"}
 
+def aware_dt(dt:datetime):
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
 
 async def LLM(
     inp: str,
@@ -138,7 +141,7 @@ async def LLM(
         # Асинхронное сохранение кэша с очисткой
         i = 0
         while asizeof(cache)/1024 > max_cache_KiB:
-            if i == 0: sorted_keys = sorted(cache.keys(), key=lambda k: datetime.fromisoformat(cache[k]["dt"]))
+            if i == 0: sorted_keys = sorted(cache.keys(), key=lambda k: aware_dt(datetime.fromisoformat(cache[k]["dt"])))
             del cache[sorted_keys[i]]
             i+=1
         
