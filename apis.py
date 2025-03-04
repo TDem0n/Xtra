@@ -5,6 +5,7 @@ import json
 from typing import Literal
 import aiohttp, aiofiles, asyncio
 from datetime import datetime
+from pympler.asizeof import asizeof
 import os
 from dotenv import load_dotenv
 from datetime import timezone
@@ -134,7 +135,6 @@ async def LLM(
             "res": restext,
             "dt": datetime.now(timezone.utc).isoformat()
         }
-        from pympler.asizeof import asizeof
         # Асинхронное сохранение кэша с очисткой
         i = 0
         while asizeof(cache)/1024 > max_cache_KiB:

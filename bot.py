@@ -252,7 +252,7 @@ async def send_important_news(message: Message, progress: bool = True):
         )
         await message.answer(news, reply_markup=intr.free)
     except Exception as e:
-        logging.error(f"News error: {e}")
+        logging.error(f"News error: {e}\n{traceback.format_exc()}")
         await message.answer("Ошибка при получении новостей", reply_markup=intr.free)
 
 async def send_weather(message: Message, progress: bool = True, enquiry: str = None):
@@ -263,7 +263,7 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
         await message.answer(wthr if wthr else "Ничего особенного в прогнозе погоды", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
-        logging.error(f"Weather error: {e}")
+        logging.error(f"Weather error: {e}\n{traceback.format_exc()}")
         await message.answer("Ошибка при проверке погоды", reply_markup=intr.free)
 
 @dp.message(Command("profile", "профиль"))
@@ -356,7 +356,7 @@ async def notify_handler(message: Message, try_to_get_time=True):
         await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
 
     except Exception as e:
-        logging.error(f"Notify Error [User {user_id}]: {str(e)}", exc_info=True)
+        logging.error(f"Notify Error [User {user_id}]: {str(e)}\n{traceback.format_exc()}", exc_info=True)
         await message.answer("❌ Произошла ошибка при обработке запроса", reply_markup=intr.free)
         
 @dp.message()
