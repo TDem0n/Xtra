@@ -7,6 +7,7 @@ import aiohttp, aiofiles, asyncio
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from datetime import timezone
 
 import data as db
 
@@ -50,7 +51,8 @@ async def LLM(
     caching: bool = True,
     pr_io: bool = False,
     pr_c: bool = True,
-    timeout: int = 120,
+    timeout: int|float = 6000,
+    attempt_time: int|float = 3000,
     max_retries: int = 3
 ) -> str:
     
@@ -72,7 +74,7 @@ async def LLM(
     if caching and txtcache in cache:
         if pr_c: 
             print("using cached result")
-        cache[txtcache]["dt"] = datetime.utcnow().isoformat()
+        cache[txtcache]["dt"] = datetime.now(timezone.utc).isoformat()
         await db.setllmcache(cache)
         async with aiofiles.open("cachellm.json", mode="w", encoding="utf-8") as f:
             await f.write(json.dumps(cache, ensure_ascii=False))
@@ -102,7 +104,8 @@ async def LLM(
                 async with session.post(
                     f"{proxyapi_url}/{serv_urls[service]}",
                     json=payload,
-                    headers=headers
+                    headers=headers,
+                    timeout=attempt_time
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -128,7 +131,7 @@ async def LLM(
     if caching and not restext.startswith("Error"):
         cache[txtcache] = {
             "res": restext,
-            "dt": datetime.utcnow().isoformat()
+            "dt": datetime.now(timezone.utc).isoformat()
         }
         
         # Асинхронное сохранение кэша с очисткой

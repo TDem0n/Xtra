@@ -464,7 +464,9 @@ async def send_scheduled_xtra(userid: int):
         await bot.send_message(userid, news)
         if wthr:
             await bot.send_message(userid, wthr)
-
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout error in scheduled xtra for {userid}. \n{traceback.format_exc()}")
+        await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
     except Exception as e:
         logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
