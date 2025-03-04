@@ -62,9 +62,9 @@ async def LLM(
     # Асинхронная работа с кэшем
     cache = {}
     try:
-        cache = await db.getllmcache() # Only for making sure it works
+        cache = await db.getllmcache() # DB usage
         async with aiofiles.open("cachellm.json", mode="r", encoding="utf-8") as f:
-            cache = json.loads(await f.read())
+            cache = json.loads(await f.read())  # Del
     except (FileNotFoundError, json.JSONDecodeError):
         cache = {}
 

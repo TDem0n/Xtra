@@ -142,22 +142,22 @@ async def getllmcache() -> dict:
     return cache.get("cache") if cache else None
 
 async def setllmcache(data: dict):
-    await db.caches.update_one(
-        {"type": "llm"},
-        {"$set": {"cache": data}},
-        upsert=True
-    )
+    await db.caches.replace_one(
+    {"type": "llm"},  # Фильтр для поиска документа
+    {"type": "llm", "cache": data},  # Полностью новый документ
+    upsert=True  # Создать документ, если не найден
+)
 
 async def getnewscache() -> dict:
     cache = await db.caches.find_one({"type": "news"})
     return cache.get("cache") if cache else None
 
 async def setnewscache(data: dict):
-    await db.caches.update_one(
-        {"type": "news"},
-        {"$set": {"cache": data}},
-        upsert=True
-    )
+    await db.caches.replace_one(
+    {"type": "news"},  # Фильтр для поиска документа
+    {"type": "news", "cache": data},  # Полностью новый документ
+    upsert=True  # Создать документ, если не найден
+)
 
 # Функции для новостей
 async def getnews(service: str) -> list:
@@ -165,8 +165,8 @@ async def getnews(service: str) -> list:
     return news.get("news") if news else None
 
 async def setnews(service: str, news_list: list):
-    await db.news.update_one(
-        {"service": service},
-        {"$set": {"news": news_list}},
-        upsert=True
-    )
+    await db.news.replace_one(
+    {"service": service},  # Фильтр для поиска документа
+    {"service": service, "news": news_list},  # Полностью новый документ
+    upsert=True  # Создать документ, если не найден
+)
