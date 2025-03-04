@@ -37,7 +37,7 @@ def str2time(stringtime, format_="%Y-%m-%d %H:%M"):
     return time.strptime(stringtime, format_)
 
 max_cachelen = 200
-max_cache_KiB = 1000.0
+max_cache_KiB = 500.0
 
 proxyapi_url = "https://api.proxyapi.ru"
 
@@ -138,7 +138,7 @@ async def LLM(
         # Асинхронное сохранение кэша с очисткой
         i = 0
         while asizeof(cache)/1024 > max_cache_KiB:
-            if i == 0: sorted_keys = sorted(cache.keys(), key=lambda k: cache[k]["dt"])
+            if i == 0: sorted_keys = sorted(cache.keys(), key=lambda k: datetime.fromisoformat(cache[k]["dt"]))
             del cache[sorted_keys[i]]
             i+=1
         
