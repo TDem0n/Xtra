@@ -494,7 +494,7 @@ async def main():
         collectnews.step,
         'interval',
         minutes=120,
-        next_run_time=datetime.now() + timedelta(minutes=5)
+        next_run_time=datetime.now() + timedelta(minutes=10)
     )
     scheduler.start()
     

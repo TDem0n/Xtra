@@ -105,9 +105,9 @@ async def GetNews(services = ["ria", "e1"]):
         servpath = json.load(f)
     news = []
     for service in services:
-        extnd = await data.getnews(service)
+        extnd = await data.getnews(service) # DB usage
         with open(basedir+servpath[service], encoding="utf-8") as f:
-            extnd = json.load(f)
+            extnd = json.load(f)    # Del
         news.extend(extnd)
     return news
 
@@ -141,9 +141,10 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     newscont = []
     for new in news:
         newscont.append(f'\t{new["content"]}\nСсылка: {new["link"]}')
-    cache = await data.getnewscache()
+
+    cache = await data.getnewscache() # DB usage
     with open(basedir+"cachednews.json", encoding="utf-8") as f:
-        cache = json.load(f)
+        cache = json.load(f)    # Del
     # define the common prompt on the first step
     commonprompt = f"{middlepromptgpt}\n\n\tПрофиль пользователя:\n{profile}\n\tНовости:\n"
     if not commonprompt in cache:
@@ -158,14 +159,16 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 answers.append(cache[commonprompt][cachenews]["res"])
                 # Deleting processed news
                 newscont = [x for x in newscont if x not in lstcachenews]
-                cache_ = await data.getnewscache()
+
+                cache_ = await data.getnewscache() # DB usage
                 with open(basedir+"cachednews.json", encoding="utf-8") as f:
-                    cache_ = json.load(f)
+                    cache_ = json.load(f)   # Del
                 # updating date & time of last use in cache to denote its relevance
                 cache_[commonprompt][cachenews]["dt"] = time2str(gmtime())
-                await data.setnewscache(cache_)
+
+                await data.setnewscache(cache_) # DB usage
                 with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
-                    json.dump(cache_, f)
+                    json.dump(cache_, f)    # Del
     # if after getting cached results there are some news yet or if caching is off,
     # processing the remaining news using gpt's api
     progress_msg = None
@@ -183,17 +186,17 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm1 else llm1), model=(model if not model1 else model1), caching=caching, pr_io=False)
 
                 # caching news
-                cache_ = await data.getnewscache()
+                cache_ = await data.getnewscache() # DB usage
                 with open(basedir+"cachednews.json", encoding="utf-8") as f:
-                    cache_ = json.load(f)
+                    cache_ = json.load(f)   # Del
                 if commonprompt not in cache_: cache_[commonprompt] = {}
                 cache_[commonprompt][repr(newspart)] = {
                     "res": ansgpt,
                     "dt": time2str(gmtime())
                 }
-                await data.setnewscache(cache_)
+                await data.setnewscache(cache_) # DB usage
                 with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
-                    json.dump(cache_, f)
+                    json.dump(cache_, f)    # Del
 
                 # adding answer to list
                 answers.append(ansgpt)
@@ -207,9 +210,9 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                     # starting a new timer from this notification
                     tmr = timer()
                 nn += 1
-    cache = dict(await data.getnewscache())
+    cache = dict(await data.getnewscache()) # DB usage
     with open(basedir+"cachednews.json", encoding="utf-8") as f:
-        cache = dict(json.load(f))
+        cache = dict(json.load(f))  # Del
     if len(cache) > maxcache:
         cache_=cache.copy()
         dt_cache = {}
@@ -219,9 +222,10 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
         sorted_keys = sorted(dt_cache.keys(), key=lambda k: str2time(dt_cache[k]))
         for keys in sorted_keys[:len(cache)-maxcache]:
             cache_[keys[0]].pop(keys[1])
-        await data.setnewscache(cache_)
+
+        await data.setnewscache(cache_) # DB usage
         with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
-            json.dump(cache_, f)
+            json.dump(cache_, f)    # Del
     answer = "\n\n".join(answers)
     with open(basedir+"finalpromptgpt.txt", encoding="utf-8") as f:
         finalpromptgpt = f.read()
