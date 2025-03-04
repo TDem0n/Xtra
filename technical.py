@@ -2,6 +2,7 @@ import json
 import time
 from datetime import datetime, timedelta, timezone
 from aiogram.types import Message
+from pympler.asizeof import asizeof
 import types
 import ast
 
@@ -38,6 +39,7 @@ from timer import timer
 #returns list of dicts of news, list[dict]
 #apis.News(country="ru")
 maxcache = 200
+max_cache_KiB = 6000
 
 def splitlist(inplist: list, itemsinpart:int=30):
     import math
@@ -213,16 +215,18 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     cache = dict(await data.getnewscache()) # DB usage
     with open(basedir+"cachednews.json", encoding="utf-8") as f:
         cache = dict(json.load(f))  # Del
-    if len(cache) > maxcache:
-        cache_=cache.copy()
-        dt_cache = {}
-        for fst in cache_:
-            for scd in cache_[fst]:
-                dt_cache[(fst, scd)] = str2time(cache_[fst][scd]["dt"])
-        sorted_keys = sorted(dt_cache.keys(), key=lambda k: str2time(dt_cache[k]))
-        for keys in sorted_keys[:len(cache)-maxcache]:
-            cache_[keys[0]].pop(keys[1])
-
+    i = 0
+    while asizeof(cache)/1024 > max_cache_KiB:
+        if i==0: 
+            cache_=cache.copy()
+            dt_cache = {}
+            for fst in cache_:
+                for scd in cache_[fst]:
+                    dt_cache[(fst, scd)] = str2time(cache_[fst][scd]["dt"])
+            sorted_keys = sorted(dt_cache.keys(), key=lambda k: dt_cache[k])
+        cache_[sorted_keys[i][0]].pop(sorted_keys[i][1])
+        i+=1
+    if i>0:
         await data.setnewscache(cache_) # DB usage
         with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
             json.dump(cache_, f)    # Del

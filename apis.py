@@ -37,6 +37,7 @@ def str2time(stringtime, format_="%Y-%m-%d %H:%M"):
     return time.strptime(stringtime, format_)
 
 max_cachelen = 200
+max_cache_KiB = 1000.0
 
 proxyapi_url = "https://api.proxyapi.ru"
 
@@ -133,17 +134,17 @@ async def LLM(
             "res": restext,
             "dt": datetime.now(timezone.utc).isoformat()
         }
-        
+        from pympler.asizeof import asizeof
         # Асинхронное сохранение кэша с очисткой
-        if len(cache) > max_cachelen:
-            sorted_keys = sorted(cache.keys(), key=lambda k: cache[k]["dt"])
-            keys_to_delete = sorted_keys[:len(cache)-max_cachelen]
-            for key in keys_to_delete:
-                del cache[key]
+        i = 0
+        while asizeof(cache)/1024 > max_cache_KiB:
+            if i == 0: sorted_keys = sorted(cache.keys(), key=lambda k: cache[k]["dt"])
+            del cache[sorted_keys[i]]
+            i+=1
         
-        await db.setllmcache(cache)
+        await db.setllmcache(cache) # DB usage
         async with aiofiles.open("cachellm.json", mode="w", encoding="utf-8") as f:
-            await f.write(json.dumps(cache, ensure_ascii=False))
+            await f.write(json.dumps(cache, ensure_ascii=False))    # Del
 
     if pr_io: 
         print(f"LLM's {'answer' if not restext.startswith('Error') else 'error'}:", restext)
