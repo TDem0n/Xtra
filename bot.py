@@ -255,11 +255,11 @@ async def send_important_news(message: Message, progress: bool = True):
         logging.error(f"News error: {e}\n{traceback.format_exc()}")
         await message.answer("Ошибка при получении новостей", reply_markup=intr.free)
 
-async def send_weather(message: Message, progress: bool = True, enquiry: str = None):
+async def send_weather(message: Message, progress: bool = True, enquiry: str = None, always_return=False):
     if progress:
         await message.answer("Проверяю погоду...")
     try:
-        wthr = await technical.Weather(city="екб", profile=await get_profile(message.from_user.id), source='openmeteo', enquiry=enquiry)
+        wthr = await technical.Weather(city="екб", profile=await get_profile(message.from_user.id), source='openmeteo', enquiry=enquiry, always_return=True)
         await message.answer(wthr if wthr else "Ничего особенного в прогнозе погоды", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
@@ -281,7 +281,7 @@ async def news_handler(message: Message):
 async def weather_handler(message: Message):
     await set_current_action(message.from_user.id, None)
     enquiry = message.text[8:].strip() or None
-    await send_weather(message, enquiry=enquiry)
+    await send_weather(message, enquiry=enquiry, always_return=True)
 
 @dp.message(Command("xtra", "sense"))
 async def xtra_handler(message: Message):

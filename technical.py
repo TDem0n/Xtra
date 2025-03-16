@@ -238,7 +238,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     if progress and progress_msg != None: await progress_msg.delete()
     return ansgpt
 
-async def Weather(city:str, profile:str="Нет профиля", source:str="openmeteo", enquiry=None):
+async def Weather(city:str, profile:str="Нет профиля", source:str="openmeteo", enquiry=None, always_return=False):
     with open(basedir+"weatherprompt.txt", encoding="utf-8") as f:
         wprompt = f.read()
     wthr = apis.Weather(city, service=source)
@@ -248,6 +248,6 @@ async def Weather(city:str, profile:str="Нет профиля", source:str="ope
     #print(inpt) # Excess printing
     ansgpt = await apis.GPT(inpt)
     noweather = "ничего необычного"
-    if noweather.lower() in ansgpt.lower():
+    if noweather.lower() in ansgpt.lower() and not always_return:
         return None
     return ansgpt
