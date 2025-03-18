@@ -268,6 +268,8 @@ async def send_weather(message: Message, progress: bool = True, enquiry: str = N
 
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
+    profile_help = open("profile_help.txt").read()
+    await message.answer(profile_help)
     await message.answer(f"Ваш профиль:\n<code>{await get_profile(message.from_user.id)}</code>")
     await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.setprof)
     await set_current_action(message.from_user.id, "profile")
@@ -414,7 +416,7 @@ async def default_handler(message: Message):
 
     if len(chain) > 1 and not repeat:
         if chain[1] == "profile":
-            next_msg=("Теперь напишите описание Вашего профиля")
+            next_msg=open("profile_help.txt").read()
             kb = intr.setprof
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
