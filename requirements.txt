@@ -46,3 +46,6 @@ xmltodict==0.14.2
 yarl==1.18.3
 feedparser
 motor
+pympler
+lxml
+bs4

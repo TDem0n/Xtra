@@ -102,8 +102,10 @@ def GetNews(services = ["ria", "e1"]):
         servpath = json.load(f)
     news = []
     for service in services:
-        with open(basedir+servpath[service], encoding="utf-8") as f:
-            news.extend(json.load(f))
+        extnd = await data.getnews(service) # DB usage
+        """with open(basedir+servpath[service], encoding="utf-8") as f:
+            extnd = json.load(f)"""    # Del
+        news.extend(extnd)
     return news
 
 async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ria"], timeframe:float|int=24, newspart:int=40, 

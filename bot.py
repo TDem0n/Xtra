@@ -231,7 +231,7 @@ async def send_important_news(message: Message, progress: bool = True):
     
     sources = basenews.copy()
     if ekb(message):
-        sources.append("e1")
+        sources.extend(["e1", "afisha: ekaterinburg"])
     
     try:
         news = await technical.StepwiseNews(
@@ -422,7 +422,7 @@ async def send_scheduled_xtra(userid: int):
 
         sources = basenews.copy()
         if ekb(userid=userid):
-            sources.append("e1")
+            sources.extend(["e1", "afisha: ekaterinburg"])
         
         # Добавляем логирование для отладки
         city = await get_city(userid)
@@ -491,7 +491,9 @@ async def main():
         collectnews_update_job,
         'interval',
         minutes=120,
-        next_run_time=datetime.now() + timedelta(minutes=1)
+        kwargs={'af_cities': ['ekaterinburg', 'msk']},
+        executor='default',
+        next_run_time=datetime.now() + timedelta(minutes=0)
     )
     scheduler.start()
     
