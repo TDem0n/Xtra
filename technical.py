@@ -16,7 +16,7 @@ import data
 # Директория, в которой находится файл (например, /some/path/)
 import os
 fp = os.path.abspath(__file__)
-basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
+basedir = os.path.dirname(fp)#+("/" if not fp.endswith('/') else "")
 
 #from datetime import *
 def time2str(structtime, format_="%Y-%m-%d %H:%M"):
@@ -87,7 +87,7 @@ async def BigNews(profile):
     news = splitlist(news, 30)
 
     #get prompt txt:
-    with open(basedir+"finalpromptgpt.txt", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"finalpromptgpt.txt"), encoding="utf-8") as f:
         promptgpt = f.read()
 
     answersgpt = []
@@ -104,7 +104,7 @@ async def BigNews(profile):
     return answer
 
 async def GetNews(services = ["ria", "e1"]):
-    with open(basedir+"servpath.json") as f:
+    with open(os.path.join(basedir,"servpath.json")) as f:
         servpath = json.load(f)
     news = []
     for service in services:
@@ -139,14 +139,14 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     news = delold(news, timedelta(hours=float(timeframe)))
 
     answers = []
-    with open(basedir+"middlepromptgpt.txt", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"middlepromptgpt.txt"), encoding="utf-8") as f:
         middlepromptgpt = f.read()
     newscont = []
     for new in news:
         newscont.append(f'\t{new["content"]}\nСсылка: {new["link"]}')
 
     cache = await data.getnewscache() # DB usage
-    with open(basedir+"cachednews.json", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"cachednews.json"), encoding="utf-8") as f:
         cache = json.load(f)    # Del
     # define the common prompt on the first step
     commonprompt = f"{middlepromptgpt}\n\n\tПрофиль пользователя:\n{profile}\n\tНовости:\n"
@@ -164,13 +164,13 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 newscont = [x for x in newscont if x not in lstcachenews]
 
                 cache_ = await data.getnewscache() # DB usage
-                with open(basedir+"cachednews.json", encoding="utf-8") as f:
+                with open(os.path.join(basedir,"cachednews.json"), encoding="utf-8") as f:
                     cache_ = json.load(f)   # Del
                 # updating date & time of last use in cache to denote its relevance
                 cache_[commonprompt][cachenews]["dt"] = time2str(gmtime())
 
                 await data.setnewscache(cache_) # DB usage
-                with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
+                with open(os.path.join(basedir,"cachednews.json"), "w", encoding="utf-8") as f:
                     json.dump(cache_, f)    # Del
     # if after getting cached results there are some news yet or if caching is off,
     # processing the remaining news using gpt's api
@@ -190,7 +190,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
 
                 # caching news
                 cache_ = await data.getnewscache() # DB usage
-                with open(basedir+"cachednews.json", encoding="utf-8") as f:
+                with open(os.path.join(basedir,"cachednews.json"), encoding="utf-8") as f:
                     cache_ = json.load(f)   # Del
                 if commonprompt not in cache_: cache_[commonprompt] = {}
                 cache_[commonprompt][repr(newspart)] = {
@@ -198,7 +198,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                     "dt": time2str(gmtime())
                 }
                 await data.setnewscache(cache_) # DB usage
-                with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
+                with open(os.path.join(basedir,"cachednews.json"), "w", encoding="utf-8") as f:
                     json.dump(cache_, f)    # Del
 
                 # adding answer to list
@@ -214,7 +214,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                     tmr = timer()
                 nn += 1
     cache = dict(await data.getnewscache()) # DB usage
-    with open(basedir+"cachednews.json", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"cachednews.json"), encoding="utf-8") as f:
         cache = dict(json.load(f))  # Del
     i = 0
     while asizeof(cache)/1024 > max_cache_KiB:
@@ -229,10 +229,10 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
         i+=1
     if i>0:
         await data.setnewscache(cache_) # DB usage
-        with open(basedir+"cachednews.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(basedir,"cachednews.json"), "w", encoding="utf-8") as f:
             json.dump(cache_, f)    # Del
     answer = "\n\n".join(answers)
-    with open(basedir+"finalpromptgpt.txt", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"finalpromptgpt.txt"), encoding="utf-8") as f:
         finalpromptgpt = f.read()
     inpgpt = finalpromptgpt+"\n\n\tПрофиль пользователя:\n"+profile+"\n\tНовости (нумерация может быть неверной):\n"+answer
     ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm2 else llm2), model=(model if not model2 else model2), caching=caching, pr_io=False)
@@ -240,7 +240,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     return ansgpt
 
 async def Weather(city:str, profile:str="Нет профиля", source:str="openmeteo", enquiry=None, always_return=False):
-    with open(basedir+"weatherprompt.txt", encoding="utf-8") as f:
+    with open(os.path.join(basedir,"weatherprompt.txt"), encoding="utf-8") as f:
         wprompt = f.read()
     wthr = apis.Weather(city, service=source)
     wthr = "\n\n".join(wthr)

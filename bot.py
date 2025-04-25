@@ -37,7 +37,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 # Директория, в которой находится файл (например, /some/path/)
 import os
 fp = os.path.abspath(__file__)
-basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
+basedir = os.path.dirname(fp)#+("/" if not fp.endswith('/') else "")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 devid = 5324202988
 

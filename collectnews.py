@@ -9,7 +9,7 @@ afisha_cities = ['ekaterinburg', 'msk']
 # Директория, в которой находится файл (например, /some/path/)
 import os
 fp = os.path.abspath(__file__)
-basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
+basedir = os.path.dirname(fp)#+("/" if not fp.endswith('/') else "")
 
 laststep = timer.timer()
 
@@ -121,10 +121,10 @@ def get_max_date(date_strings) -> datetime:
 
 async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekaterinburg', 'msk']]=[]):
     global laststep
-    with open(basedir+"servpath.json") as f:
+    with open(os.path.join(basedir,"servpath.json")) as f:
         servpath = json.load(f)
     for service in services:
-        with open(basedir+servpath[service], encoding="utf-8") as f:
+        with open(os.path.join(basedir,servpath[service]), encoding="utf-8") as f:
             newsstream = json.load(f)
         newsstream2 = await data.getnews(service)
         oldlen, oldlen2 = len(newsstream), len(newsstream2)
@@ -144,7 +144,7 @@ async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekater
             lenbefore2 = len(newsstream2)
             newsstream = uniqdicts(newsstream+freshnews)
             newsstream2 = uniqdicts(newsstream2+freshnews)
-            with open(basedir+servpath[service], encoding="utf-8", mode="w") as f:
+            with open(os.path.join(basedir,servpath[service]), encoding="utf-8", mode="w") as f:
                 json.dump(newsstream, f)
             await data.setnews(service, newsstream2)
             print(f"Added {len(newsstream)-lenbefore} unique news to {servpath[service]}")

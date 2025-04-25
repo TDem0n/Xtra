@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 import asyncio
-
+import os
 import json
 import datetime, time
 import technical, bot as bot_py
@@ -16,12 +16,12 @@ import technical, bot as bot_py
 # Директория, в которой находится файл (например, /some/path/)
 import os
 fp = os.path.abspath(__file__)
-basedir = os.path.dirname(fp)+("/" if not fp.endswith('/') else "")
+basedir = os.path.dirname(fp)#+("/" if not fp.endswith('/') else "")
 
 scheduler = BackgroundScheduler()
 
 def send_news(userid, bot):
-    prof_path = basedir+"profiles.json"
+    prof_path = os.path.join(basedir,"profiles.json")
     with open(prof_path) as f:
         profile = json.load(f)[userid]
     print("Отправляю сообщение...")
