@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from aiogram.types import Message
 import types
 import ast
+import data
 
 import time
 from time import gmtime
@@ -97,7 +98,7 @@ def BigNews(profile):
     answer = "\n\n".join(answersgpt)
     return answer
 
-def GetNews(services = ["ria", "e1"]):
+async def GetNews(services = ["ria", "e1"]):
     with open(basedir+"servpath.json") as f:
         servpath = json.load(f)
     news = []
@@ -129,7 +130,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     if type(source)==str: source = source.lower()
     if source=="last": news = apis.News()
     elif type(source) == list: 
-        news = GetNews(services=source)
+        news = await GetNews(services=source)
     news = delold(news, timedelta(hours=float(timeframe)))
 
     answers = []

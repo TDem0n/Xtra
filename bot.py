@@ -465,8 +465,8 @@ async def send_scheduled_xtra(userid: int):
         logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
         
-async def collectnews_update_job():
-    await asyncio.to_thread(collectnews.step)
+async def collectnews_update_job(af_cities=[]):
+    await asyncio.to_thread(lambda: collectnews.step(af_cities=af_cities))
 
 async def main():
     # Восстанавливаем расписания
