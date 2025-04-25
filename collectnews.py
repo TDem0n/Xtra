@@ -58,6 +58,7 @@ def riadate2time(stringtime):
     return time_struct
 
 def noupdates() -> timedelta:
+    global laststep
     return laststep.passed
 
 def delold(news: list, limitfresh):
@@ -125,9 +126,12 @@ async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekater
     for service in services:
         with open(basedir+servpath[service], encoding="utf-8") as f:
             newsstream = json.load(f)
-        oldlen = len(newsstream)
+        newsstream2 = await data.getnews(service)
+        oldlen, oldlen2 = len(newsstream), len(newsstream2)
         newsstream = delold(newsstream, limit_collect)
+        newsstream2 = delold(newsstream2, limit_collect)
         print(f"Deleted {oldlen-len(newsstream)} old news of {service}")
+        print(f"Deleted {oldlen2-len(newsstream2)} old news of {service} in MongoDB")
 
         freshnews = apis.News(service=service)
         if freshnews is not None:
@@ -137,10 +141,14 @@ async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekater
                     rnew[key] = fnew[key]
                 freshnews[i] = rnew
             lenbefore = len(newsstream)
+            lenbefore2 = len(newsstream2)
             newsstream = uniqdicts(newsstream+freshnews)
+            newsstream2 = uniqdicts(newsstream2+freshnews)
             with open(basedir+servpath[service], encoding="utf-8", mode="w") as f:
                 json.dump(newsstream, f)
-            print(f"Added {len(newsstream)-lenbefore} unique news in {servpath[service]}")
+            await data.setnews(service, newsstream2)
+            print(f"Added {len(newsstream)-lenbefore} unique news to {servpath[service]}")
+            print(f"Added {len(newsstream2)-lenbefore2} unique news to {service} in MongoDB")
 
         print(f"Now there's {len(newsstream)} unique fresh news in {servpath[service]}")
         print(f"Now there's {len(newsstream2)} unique fresh news in {service} in MongoDB")

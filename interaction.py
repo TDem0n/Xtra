@@ -1,6 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 cancel_text = "Отмена"
+help_text = "Помощь"
 
 time_text = [
     ["0:00", "4:00"],
@@ -21,7 +22,7 @@ time = ReplyKeyboardMarkup(
 
 city_text = [
     ["Москва", "Екатеринбург"],
-    [cancel_text]
+    [cancel_text, help_text]
 ]
 
 city = ReplyKeyboardMarkup(
@@ -37,7 +38,6 @@ notify_text = "Уведомления"
 xtra_text = "Узнать о важных событиях"
 profile_text = "Мой профиль"
 city_text = "Мой город"
-help_text = "Помощь"
 
 free_text = [
     [xtra_text], 

@@ -55,11 +55,11 @@ def ekb(message: Message = None, userid: int = None) -> bool:
     return True
 
 async def get_profile(userid: int) -> str:
-    print(f"Для проверки. Profile {userid}: {await (data.getprofile(userid))}")
     profile_file = os.path.join(basedir, "profiles.json")
     try:
         with open(profile_file, "r", encoding="utf-8") as f:
             profiles = json.load(f)
+        prf = await data.getprofile(userid) # using DB only for making sure it works and for next updates
         prf = profiles.get(str(userid), "Нет профиля")
         await data.setprofile(userid, prf)
         return prf
@@ -68,9 +68,9 @@ async def get_profile(userid: int) -> str:
         return None
 
 async def save_profile(userid: int, text: str) -> None:
-    await data.setprofile(userid, text)
     profile_file = os.path.join(basedir, "profiles.json")
     try:
+        await data.setprofile(userid, text) # DB usage
         with open(profile_file, "r+", encoding="utf-8") as f:
             profiles = json.load(f)
             profiles[str(userid)] = text
@@ -83,19 +83,20 @@ async def save_profile(userid: int, text: str) -> None:
 async def get_city(userid: int):
     city_file = os.path.join(basedir, "cities.json")
     try:
+        ct = await data.getcity(userid)
         with open(city_file, "r", encoding="utf-8") as f:
             cities = json.load(f)
         ct = cities.get(str(userid), None)
-        await data.setcity(userid, ct)
+        await data.setcity(userid, ct) # DB usage
         return ct
     except Exception as e:
         logging.error(f"Error reading cities: {e}")
         return None
     
 async def save_city(userid: int, city: str):
-    await data.setcity(userid, city)
     city_file = os.path.join(basedir, "cities.json")
     try:
+        await data.setcity(userid, city) # DB usage
         with open(city_file, "r+", encoding="utf-8") as f:
             cities = json.load(f)
             cities[str(userid)] = city
@@ -125,6 +126,7 @@ def get_timezone_by_city(city_name: str, language: str = 'ru') -> str:
 
 async def get_tz(userid: int):
     city = await get_city(userid)
+    tz = await data.gettz(userid) # DB usage
     tz = get_timezone_by_city(city)
     await data.settz(userid, tz)
     return tz
@@ -132,6 +134,7 @@ async def get_tz(userid: int):
 async def get_current_action(userid: int) -> str:
     action_file = os.path.join(basedir, "currentacts.json")
     try:
+        act = await data.getact(userid) # DB usage
         with open(action_file, "r", encoding="utf-8") as f:
             actions = json.load(f)
         act = actions.get(str(userid))
@@ -142,9 +145,9 @@ async def get_current_action(userid: int) -> str:
         return None
 
 async def set_current_action(userid: int, action: str) -> None:
-    await data.setact(userid, action)
     action_file = os.path.join(basedir, "currentacts.json")
     try:
+        await data.setact(userid, action) # DB usage
         # Попытка открыть файл в режиме чтения/записи
         with open(action_file, "r+", encoding="utf-8") as f:
             actions = json.load(f)
@@ -171,8 +174,9 @@ async def set_notifytime(user_id, args, message, job_id, tz, notify_users, notif
             if not (0 <= hours < 24 and 0 <= mins < 60):
                 raise ValueError
         except ValueError:
-            await message.answer("⏰ Неверный формат времени. Используйте HH:MM (24-часовой формат)")
-            return
+            await message.answer("⏰ Неверный формат времени. Используйте 24-часовой формат часы:минуты")
+            await set_current_action(user_id, 'notify')
+            return "repeat"
 
         # Обновление расписания
         if scheduler.get_job(job_id):
@@ -187,8 +191,10 @@ async def set_notifytime(user_id, args, message, job_id, tz, notify_users, notif
         )
 
         # Сохранение настроек
-        await data.setnotify(user_id, hours, mins)
+        
         notify_users[str(user_id)] = {"hrs": hours, "mns": mins}
+
+        await data.setnotify(user_id, hours, mins) # DB usage
         with open(notify_file, "w", encoding="utf-8") as f:
             json.dump(notify_users, f, indent=2, ensure_ascii=False)
 
@@ -212,9 +218,9 @@ async def start_handler(message: Message):
     
 @dp.message(Command('help'))
 async def help_handler(message: Message):
-    start_msg_file = os.path.join(basedir, "helpmsg.txt")
+    help_msg_file = os.path.join(basedir, "helpmsg.txt")
     try:
-        with open(start_msg_file, "r", encoding="utf-8") as f:
+        with open(help_msg_file, "r", encoding="utf-8") as f:
             help_msg = f.read()
     except Exception as e:
         logging.error(f"Error reading help message: {e}")
@@ -227,7 +233,7 @@ async def send_important_news(message: Message, progress: bool = True):
         await message.answer("Анализирую новости...")
     
     if collectnews.noupdates().total_seconds() > 90:
-        await asyncio.to_thread(collectnews.step)
+        await collectnews.step()
     
     sources = basenews.copy()
     if ekb(message):
@@ -246,28 +252,24 @@ async def send_important_news(message: Message, progress: bool = True):
         )
         await message.answer(news, reply_markup=intr.free)
     except Exception as e:
-        logging.error(f"News error: {e}")
+        logging.error(f"News error: {e}\n{traceback.format_exc()}")
         await message.answer("Ошибка при получении новостей", reply_markup=intr.free)
 
-async def send_weather(message: Message, progress: bool = True, enquiry: str = None):
+async def send_weather(message: Message, progress: bool = True, enquiry: str = None, always_return=False):
     if progress:
         await message.answer("Проверяю погоду...")
     try:
-        wthr = await asyncio.to_thread(
-            technical.Weather,
-            city="екб",
-            profile=await get_profile(message.from_user.id),
-            source='openmeteo',
-            enquiry=enquiry
-        )
+        wthr = await technical.Weather(city="екб", profile=await get_profile(message.from_user.id), source='openmeteo', enquiry=enquiry, always_return=True)
         await message.answer(wthr if wthr else "Ничего особенного в прогнозе погоды", reply_markup=intr.free)
         if not wthr: logging.info("Ничего особенного")
     except Exception as e:
-        logging.error(f"Weather error: {e}")
+        logging.error(f"Weather error: {e}\n{traceback.format_exc()}")
         await message.answer("Ошибка при проверке погоды", reply_markup=intr.free)
 
 @dp.message(Command("profile", "профиль"))
 async def profile_handler(message: Message):
+    profile_help = open("profile_help.txt").read()
+    await message.answer(profile_help)
     await message.answer(f"Ваш профиль:\n<code>{await get_profile(message.from_user.id)}</code>")
     await message.answer("Отправьте новый профиль для обновления", reply_markup=intr.setprof)
     await set_current_action(message.from_user.id, "profile")
@@ -281,7 +283,7 @@ async def news_handler(message: Message):
 async def weather_handler(message: Message):
     await set_current_action(message.from_user.id, None)
     enquiry = message.text[8:].strip() or None
-    await send_weather(message, enquiry=enquiry)
+    await send_weather(message, enquiry=enquiry, always_return=True)
 
 @dp.message(Command("xtra", "sense"))
 async def xtra_handler(message: Message):
@@ -308,6 +310,7 @@ async def notify_handler(message: Message, try_to_get_time=True):
     notify_file = os.path.join(basedir, "notifyusers.json")
     job_id = f"{user_id}_evrd"
     tz = await get_tz(user_id)
+    time_data = await data.getnotify(user_id) # DB usage
 
     try:
         # Загрузка данных уведомлений (с обработкой пустого файла)
@@ -321,14 +324,15 @@ async def notify_handler(message: Message, try_to_get_time=True):
 
         # Проверка текущих настроек
         if (not args) or (not try_to_get_time):
-            if str(user_id) in notify_users:
-                time_data = notify_users[str(user_id)]
+            if str(user_id) in notify_users: 
+            # if time_data:
+                time_data = notify_users[str(user_id)] # Del
                 response = f"🔔 Уведомления установлены на {time_data['hrs']:02}:{time_data['mns']:02} "+(str(tz) if tz!=None else "UTC")
             else:
                 response = "🔕 Уведомления не настроены"
             await message.answer(response)
 
-            await message.answer("Выберите время:", reply_markup=intr.time)
+            await message.answer("Выберите время уведомлений:", reply_markup=intr.time)
             await set_current_action(user_id, "notify")
             return
 
@@ -340,7 +344,9 @@ async def notify_handler(message: Message, try_to_get_time=True):
                 removed = True
             
             if str(user_id) in notify_users:
+            # if time_data:
                 del notify_users[str(user_id)]
+                await data.setnotify(user_id, hrs=0, mns=0, off=True)
                 with open(notify_file, "w", encoding="utf-8") as f:
                     json.dump(notify_users, f, indent=2)
                 removed = True
@@ -352,18 +358,22 @@ async def notify_handler(message: Message, try_to_get_time=True):
         await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
 
     except Exception as e:
-        logging.error(f"Notify Error [User {user_id}]: {str(e)}", exc_info=True)
+        logging.error(f"Notify Error [User {user_id}]: {str(e)}\n{traceback.format_exc()}", exc_info=True)
         await message.answer("❌ Произошла ошибка при обработке запроса", reply_markup=intr.free)
         
 @dp.message()
 async def default_handler(message: Message):
     mt = message.text
+    userid = message.from_user.id
     if mt==intr.notify_text: return await notify_handler(message, try_to_get_time=False)
     elif mt==intr.xtra_text: return await xtra_handler(message)
     elif mt==intr.profile_text: return await profile_handler(message)
     elif mt==intr.city_text: return await city_handler(message)
     elif mt==intr.help_text: return await help_handler(message)
-    elif mt==intr.cancel_text: return await message.answer("Вы вернулись на главную", reply_markup=intr.free)
+    elif mt==intr.cancel_text: 
+        await message.answer("Вы вернулись на главную", reply_markup=intr.free)
+        await set_current_action(userid, None)
+        return
 
     userid = message.from_user.id
     act = await get_current_action(userid)
@@ -401,11 +411,12 @@ async def default_handler(message: Message):
                     notify_users = json.load(f)
             except json.JSONDecodeError:
                 pass
-        await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
+        res = await set_notifytime(user_id, args, message, job_id, tz, notify_users, notify_file)
+        if res == "repeat": repeat = True
 
     if len(chain) > 1 and not repeat:
         if chain[1] == "profile":
-            next_msg=("Теперь напишите описание Вашего профиля")
+            next_msg=open("profile_help.txt").read()
             kb = intr.setprof
         if chain[1] == "city":
             next_msg=("Отправьте название Вашего города")
@@ -418,7 +429,7 @@ async def default_handler(message: Message):
 async def send_scheduled_xtra(userid: int):
     try:
         if collectnews.noupdates().total_seconds() > 90:
-            await asyncio.to_thread(collectnews.step)
+            await collectnews.step()
 
         sources = basenews.copy()
         if ekb(userid=userid):
@@ -446,12 +457,7 @@ async def send_scheduled_xtra(userid: int):
             raise
 
         try:
-            weather_coro = asyncio.to_thread(
-                technical.Weather,
-                city="екб",
-                profile=profile,
-                source='openmeteo'
-            )
+            weather_coro = technical.Weather(city="екб", profile=profile, source='openmeteo')
         except Exception as e:
             logging.error(f"Error in Weather: {e}")
             raise
@@ -460,7 +466,9 @@ async def send_scheduled_xtra(userid: int):
         await bot.send_message(userid, news)
         if wthr:
             await bot.send_message(userid, wthr)
-
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout error in scheduled xtra for {userid}. \n{traceback.format_exc()}")
+        await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
     except Exception as e:
         logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
@@ -488,7 +496,7 @@ async def main():
 
     # Задача для регулярного обновления новостей
     scheduler.add_job(
-        collectnews_update_job,
+        collectnews.step,
         'interval',
         minutes=120,
         kwargs={'af_cities': ['ekaterinburg', 'msk']},
