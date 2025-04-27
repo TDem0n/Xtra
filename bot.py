@@ -18,6 +18,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from telegram_handler import TelegramHandler
 from dotenv import load_dotenv
+from threading import Thread
 
 import technical
 import collectnews
@@ -233,7 +234,7 @@ async def send_important_news(message: Message, progress: bool = True):
         await message.answer("Анализирую новости...")
     
     if collectnews.noupdates().total_seconds() > 90:
-        await collectnews.step()
+        await collectnews_update_job()
     
     sources = basenews.copy()
     if ekb(message):
@@ -429,7 +430,7 @@ async def default_handler(message: Message):
 async def send_scheduled_xtra(userid: int):
     try:
         if collectnews.noupdates().total_seconds() > 90:
-            await collectnews.step()
+            await collectnews_update_job()
 
         sources = basenews.copy()
         if ekb(userid=userid):
@@ -472,9 +473,24 @@ async def send_scheduled_xtra(userid: int):
     except Exception as e:
         logging.error(f"Scheduled xtra error for {userid}: {str(e)}\nTraceback: {traceback.format_exc()}")
         await bot.send_message(userid, "⚠ Произошла ошибка при подготовке уведомления")
-        
+
+async def collectnews_step_wrapper(af_cities):
+    # Запускаем асинхронную функцию в основном цикле
+    await collectnews.step(af_cities=af_cities)
+
+def start_async_task_in_main_loop(loop, af_cities):
+    # Запускаем корутину в основном цикле событий
+    asyncio.run_coroutine_threadsafe(
+        collectnews_step_wrapper(af_cities),
+        loop
+    )
+
 async def collectnews_update_job(af_cities=[]):
-    await asyncio.to_thread(lambda: collectnews.step(af_cities=af_cities))
+    loop = asyncio.get_event_loop()
+    
+    # Запускаем в отдельном потоке
+    thread = Thread(target=start_async_task_in_main_loop, args=(loop, af_cities))
+    thread.start()
 
 async def main():
     # Восстанавливаем расписания
@@ -496,7 +512,7 @@ async def main():
 
     # Задача для регулярного обновления новостей
     scheduler.add_job(
-        collectnews.step,
+        collectnews_update_job,
         'interval',
         minutes=120,
         kwargs={'af_cities': ['ekaterinburg', 'msk']},

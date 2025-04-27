@@ -106,7 +106,7 @@ async def getall(city:str = 'msk', limits:dict[Literal['cinema', 'concert', 'the
         limit = limits.get(categoria, limall)
         try:
             res[categoria] = await parsing_pages(categoria=categoria ,session=session, city=city, limitpages=limit)
-            print("parsing pages end")
+            # print("parsing pages end")
             await asyncio.sleep(0)
         except KeyboardInterrupt:
             pass

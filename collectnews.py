@@ -166,7 +166,7 @@ async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekater
         oldlen = len(af)
         af = delexpired(af)
         print(f"Deleted {oldlen-len(af)} afisha from city '{ct}'")
-        fresh_af = await afisha.getall(ct, limits={'all': 3})
+        fresh_af = await afisha.getall(ct, limits={'all': 1})
         print('end afisha')
         fresh_af_ = []
         from tqdm import tqdm
