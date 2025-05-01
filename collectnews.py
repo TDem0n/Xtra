@@ -110,7 +110,7 @@ def get_max_date(date_strings) -> datetime:
             continue  # Некорректная дата (например, 30 февраля)
         
         # Проверяем, прошла ли дата в текущем году
-        if current_date >= today - timedelta(days=30): 
+        if current_date >= today - timedelta(days=90): 
             parsed_dates.append(current_date)
         else:
             # Используем следующий год
