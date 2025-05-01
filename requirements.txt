@@ -47,3 +47,5 @@ yarl==1.18.3
 feedparser
 motor
 pympler
+lxml
+bs4
