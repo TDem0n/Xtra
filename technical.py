@@ -147,7 +147,8 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
     for new in news:
         if 'content' in new: # if it's news
             newscont.append(f'\t{new["content"]}\nСсылка: {new["link"]}')
-        else:
+        else: # if it's afisha
+            print("afisha is here!")
             newscont.append(f'\t{new["Name"]}\nСсылка: {new["url"]}')
 
     cache = await data.getnewscache() # DB usage
@@ -163,6 +164,8 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
             # if each of cached news is included in input actual news
             if set(lstcachenews).issubset(newscont):
                 print("Cool, using cache")
+                for lcn in lstcachenews: 
+                    if 'www.afisha.ru' in lcn: print('afisha cached!'); break
                 # Adding cached result
                 answers.append(cache[commonprompt][cachenews]["res"])
                 # Deleting processed news
@@ -190,7 +193,7 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
                 # define input to gpt
                 inpgpt = commonprompt+newsstrpart
                 # getting answer from gpt
-
+                if 'www.afisha.ru' in newsstrpart: print("afisha is processing!..")
                 ansgpt = await apis.LLM(inp=inpgpt, service=(llm if not llm1 else llm1), model=(model if not model1 else model1), caching=caching, pr_io=False)
 
                 # caching news
