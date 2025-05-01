@@ -517,7 +517,7 @@ async def main():
         minutes=120,
         kwargs={'af_cities': ['ekaterinburg', 'msk']},
         executor='default',
-        next_run_time=datetime.now() + timedelta(minutes=0)
+        next_run_time=datetime.now() + timedelta(minutes=5)
     )
     scheduler.start()
     

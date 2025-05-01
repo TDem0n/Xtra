@@ -76,7 +76,9 @@ def delold(news: list, limitfresh: timedelta):
     for iend in range(len(news), 0, -1):
         ind = len(news) - iend
         new = news[ind]
-        timeofnew = riadate2time(new["pubDate"])
+        pubDate = new.get('pubDate', None)
+        if not pubDate: continue
+        timeofnew = riadate2time(pubDate)
         if limit > timeofnew:
             news.pop(ind)
     return news
@@ -143,7 +145,10 @@ async def StepwiseNews(profile:str="Нет профиля", source:str|list=["ri
         middlepromptgpt = f.read()
     newscont = []
     for new in news:
-        newscont.append(f'\t{new["content"]}\nСсылка: {new["link"]}')
+        if 'content' in new: # if it's news
+            newscont.append(f'\t{new["content"]}\nСсылка: {new["link"]}')
+        else:
+            newscont.append(f'\t{new["Name"]}\nСсылка: {new["url"]}')
 
     cache = await data.getnewscache() # DB usage
     with open(os.path.join(basedir,"cachednews.json"), encoding="utf-8") as f:

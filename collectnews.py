@@ -188,3 +188,4 @@ async def step(limit_collect=timedelta(hours=48), af_cities:list[Literal['ekater
         af = uniqdicts(af+fresh_af)
         await data.setnews(doc_name, fresh_af)
         print(f"Added {len(af)-lenbefore} unique afisha to {ct} in MongoDB")
+        print(f"Now there's {len(af)} unique afisha in {ct} in MongoDB")
