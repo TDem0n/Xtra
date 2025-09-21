@@ -248,8 +248,8 @@ async def send_important_news(message: Message, progress: bool = True):
             source=sources,
             llm1="openai",
             model1="gpt-4o-mini",
-            llm2="deepseek",
-            model2="deepseek-chat"
+            llm2="openai",
+            model2="gpt-4o-mini"
         )
         await message.answer(news, reply_markup=intr.free)
     except Exception as e:
@@ -449,8 +449,8 @@ async def send_scheduled_xtra(userid: int):
                 message=None,
                 llm1="openai",
                 model1="gpt-4o-mini",
-                llm2="deepseek",
-                model2="deepseek-chat",
+                llm2="openai",
+                model2="gpt-4o-mini",
                 newspart=100
             )
         except Exception as e:
